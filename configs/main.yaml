@@ -1,0 +1,107 @@
+# QGenomix main configuration. Every result file records the hash of the resolved config.
+seed: 2026
+
+paths:
+  raw_1kg: data/raw/1kg/all_phase3          # PLINK 2 fileset prefix (1000 Genomes phase 3, GRCh37)
+  raw_pgs: data/raw/pgs                     # PGS Catalog harmonised GRCh37 scoring files
+  processed: data/processed
+  results: results
+  figures: figures
+  bundle: bundle
+  plink2: tools/plink2
+  plink: tools/plink
+
+# Mechanism clusters (Loesch et al. 2025, PGS Catalog PGP000701)
+mechanisms:
+  beta_cell: PGS005115
+  lipodystrophy: PGS005116
+  liver_lipid: PGS005117
+  obesity: PGS005118
+  proinsulin: PGS005119
+
+# The hypothesis under test: interactions between these two mechanisms
+focus_pair: [beta_cell, lipodystrophy]
+
+# D-PRISM multi-ancestry PRS trained for South Asians (Huerta-Chagoya et al., PGP000773).
+# PRS-CSx gives one weight file per GWAS ancestry; they are combined by a fitted linear model.
+background_prs:
+  AFR: PGS005373
+  AMR: PGS005374
+  EAS: PGS005375
+  EUR: PGS005376
+  SAS: PGS005377
+
+data:
+  maf_min: 0.01
+  geno_max: 0.05
+  hwe_p_sas: 1.0e-6
+  block_mb: 1.0                             # haplotype-mosaic block size for synthetic cohorts
+
+simulator:
+  prevalence: 0.11                          # ICMR-INDIAB adult diabetes prevalence ~11%
+  var_bg: 0.10                              # variance share of the genome-wide background PRS (PRS AUC ~0.73)
+  var_mech:                                 # variance share of each mechanism's additive score
+    beta_cell: 0.025
+    lipodystrophy: 0.025
+    obesity: 0.010
+    liver_lipid: 0.005
+    proinsulin: 0.005
+  var_bmi: 0.04
+  gamma: 0.14                               # mechanism x mechanism interaction (sd units; 0.14^2 ~ 2% variance)
+  delta: 0.20                               # planted SNP-pair interactions (sd units)
+  n_planted: 10
+  planted_min_maf: 0.10
+  bmi:
+    mean: 23.5
+    obesity: 1.2                            # kg/m^2 per sd of obesity score
+    lipodystrophy: -0.6                     # fat-distribution risk comes with lower BMI
+    activity: 0.5                           # kg/m^2 per step towards sedentary
+    sd_noise: 3.1
+  clinical:                                 # Indian Diabetes Risk Score inputs (Mohan et al. 2005)
+    age_mean: 45
+    age_sd: 11
+    var_age: 0.07                           # age is the strongest clinical risk factor
+    var_waist: 0.02                         # central fat, beyond BMI
+    var_activity: 0.02
+    var_family: 0.005                       # shared environment; shared genes already enter via the PRS
+    activity_p: [0.15, 0.25, 0.30, 0.30]    # vigorous, moderate, mild, sedentary
+    family_p: [0.72, 0.22, 0.06]            # no parent, one parent, both parents with diabetes
+    waist:
+      male: 88
+      female: 82
+      per_bmi: 2.3                          # cm per kg/m^2
+      lipodystrophy: 2.5                    # cm per sd of the lipodystrophy score at a given BMI
+      sd: 5.0
+
+cohort:
+  n: 10000
+
+cv:
+  test_frac: 0.2
+  folds: 5
+
+search:
+  prescreen: 200                            # top candidates (by score test) passed to the QUBO
+  k: 48                                     # pairs encoded by the quantum circuits (12 circuits x 4 pairs)
+  lam: 0.5                                  # redundancy weight (R = 1 for a shared SNP)
+  tau: 0.1                                  # LD noise floor for redundancy
+  sa_reads: 100
+
+quantum:
+  layers: 4
+  epochs: 12
+  lr: 0.03
+  batch: 128
+  twin_hidden: 6
+
+models:
+  xgb:
+    n_estimators: 300
+    max_depth: 3
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+
+eval:
+  lean_bmi: 23.0                            # WHO Asian overweight cut-off
+  screen_budget: 0.20

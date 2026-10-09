@@ -1,0 +1,56 @@
+{
+  "asha_lean_high": {
+    "title": "Lean, high genetic risk",
+    "age": 34,
+    "sex": "F",
+    "bmi": 21.6,
+    "waist_cm": 84,
+    "file": "asha_lean_high.txt",
+    "percentiles": {
+      "beta_cell": 95.9075,
+      "lipodystrophy": 87.83,
+      "liver_lipid": 4.14,
+      "obesity": 26.375,
+      "proinsulin": 14.185,
+      "prs": 91.125
+    },
+    "activity": 2,
+    "family_history": 1
+  },
+  "ravi_obese_high": {
+    "title": "Overweight, high obesity-driven risk",
+    "age": 45,
+    "sex": "M",
+    "bmi": 29.8,
+    "waist_cm": 102,
+    "file": "ravi_obese_high.txt",
+    "percentiles": {
+      "beta_cell": 49.765,
+      "lipodystrophy": 59.175,
+      "liver_lipid": 59.315,
+      "obesity": 93.8525,
+      "proinsulin": 90.335,
+      "prs": 79.225
+    },
+    "activity": 3,
+    "family_history": 2
+  },
+  "meera_low": {
+    "title": "Low genetic risk",
+    "age": 29,
+    "sex": "F",
+    "bmi": 22.4,
+    "waist_cm": 74,
+    "file": "meera_low.txt",
+    "percentiles": {
+      "beta_cell": 19.5875,
+      "lipodystrophy": 28.185,
+      "liver_lipid": 26.682499999999997,
+      "obesity": 12.814999999999998,
+      "proinsulin": 62.80250000000001,
+      "prs": 8.5
+    },
+    "activity": 1,
+    "family_history": 0
+  }
+}

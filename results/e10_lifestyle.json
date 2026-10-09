@@ -1,0 +1,152 @@
+{
+  "n": 10000,
+  "scenarios": {
+    "vigorous_exercise": {
+      "by_genetic_quintile": [
+        {
+          "quintile": 1,
+          "n": 1712,
+          "model_before": 0.027160199359059334,
+          "model_after": 0.017616691067814827,
+          "true_before": 0.02763165216909213,
+          "true_after": 0.012647846199482784
+        },
+        {
+          "quintile": 2,
+          "n": 1694,
+          "model_before": 0.059895504266023636,
+          "model_after": 0.03666248172521591,
+          "true_before": 0.05534931514112064,
+          "true_after": 0.026614440834377636
+        },
+        {
+          "quintile": 3,
+          "n": 1723,
+          "model_before": 0.08998177945613861,
+          "model_after": 0.05460116267204285,
+          "true_before": 0.09429846433316497,
+          "true_after": 0.05025080286228647
+        },
+        {
+          "quintile": 4,
+          "n": 1708,
+          "model_before": 0.14625044167041779,
+          "model_after": 0.09575928002595901,
+          "true_before": 0.1457692917796146,
+          "true_after": 0.08595279764740804
+        },
+        {
+          "quintile": 5,
+          "n": 1712,
+          "model_before": 0.2591543197631836,
+          "model_after": 0.19315020740032196,
+          "true_before": 0.2670762472936188,
+          "true_after": 0.17712340203433705
+        }
+      ],
+      "model_relative_change": -0.3170137405395508,
+      "true_relative_change": -0.4024643375231137,
+      "model_absolute_change": -0.036950986832380295,
+      "true_absolute_change": -0.04753645065757593,
+      "corr_individual_change": 0.8374321377867565
+    },
+    "waist_minus_5cm": {
+      "by_genetic_quintile": [
+        {
+          "quintile": 1,
+          "n": 2000,
+          "model_before": 0.025060255080461502,
+          "model_after": 0.0164699237793684,
+          "true_before": 0.024874084233383716,
+          "true_after": 0.015335230235350949
+        },
+        {
+          "quintile": 2,
+          "n": 2000,
+          "model_before": 0.054901354014873505,
+          "model_after": 0.035668306052684784,
+          "true_before": 0.0497259418978547,
+          "true_after": 0.03169590977139548
+        },
+        {
+          "quintile": 3,
+          "n": 2000,
+          "model_before": 0.08349601179361343,
+          "model_after": 0.05613713338971138,
+          "true_before": 0.08645246228304033,
+          "true_after": 0.058283576545859854
+        },
+        {
+          "quintile": 4,
+          "n": 2000,
+          "model_before": 0.13642603158950806,
+          "model_after": 0.0953507125377655,
+          "true_before": 0.13498067163720504,
+          "true_after": 0.09656488142871929
+        },
+        {
+          "quintile": 5,
+          "n": 2000,
+          "model_before": 0.24578814208507538,
+          "model_after": 0.18679434061050415,
+          "true_before": 0.25147671509414066,
+          "true_after": 0.19320898890530291
+        }
+      ],
+      "model_relative_change": -0.28451424837112427,
+      "true_relative_change": -0.2783900257843853,
+      "model_absolute_change": -0.03105028159916401,
+      "true_absolute_change": -0.03048425765179919,
+      "corr_individual_change": 0.7154234614016357
+    },
+    "both": {
+      "by_genetic_quintile": [
+        {
+          "quintile": 1,
+          "n": 1712,
+          "model_before": 0.027160199359059334,
+          "model_after": 0.011388841085135937,
+          "true_before": 0.02763165216909213,
+          "true_after": 0.007367587660431014
+        },
+        {
+          "quintile": 2,
+          "n": 1694,
+          "model_before": 0.059895504266023636,
+          "model_after": 0.0234344694763422,
+          "true_before": 0.05534931514112064,
+          "true_after": 0.015959218860773207
+        },
+        {
+          "quintile": 3,
+          "n": 1723,
+          "model_before": 0.08998177945613861,
+          "model_after": 0.0359722338616848,
+          "true_before": 0.09429846433316497,
+          "true_after": 0.031993531711450064
+        },
+        {
+          "quintile": 4,
+          "n": 1708,
+          "model_before": 0.14625044167041779,
+          "model_after": 0.06517980247735977,
+          "true_before": 0.1457692917796146,
+          "true_after": 0.05865915970537222
+        },
+        {
+          "quintile": 5,
+          "n": 1712,
+          "model_before": 0.2591543197631836,
+          "model_after": 0.143407940864563,
+          "true_before": 0.2670762472936188,
+          "true_after": 0.13035118174797758
+        }
+      ],
+      "model_relative_change": -0.5202882289886475,
+      "true_relative_change": -0.5859139625408325,
+      "model_absolute_change": -0.060644570738077164,
+      "true_absolute_change": -0.06920431842810795,
+      "corr_individual_change": 0.8324456526418795
+    }
+  }
+}

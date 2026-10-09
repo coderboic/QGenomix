@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# large or regenerable data
+data/raw/
+data/processed/
+data/personas/*.txt
+tools/
+bundle/model.joblib
+bundle/prs_weights.parquet
+logs/
+
+# keep results JSON and figures (small, needed for the report)
+results/**/*.npz
+results/**/*.npy
