@@ -123,6 +123,40 @@ def _write_prs_reference(cfg: Config, out: Path) -> None:
     mech.to_csv(out / "mech_snps.tsv", sep="\t", index=False)
 
 
+def build_impute_panel(cfg: Config) -> Path:
+    """LD tag panel from all 489 South Asian genomes, saved next to the model (see qgenomix.data.impute)."""
+    from qgenomix.data.impute import build_panel
+    from qgenomix.data.prepare import export_sas_panel
+
+    prefix = cfg.path("processed") / "sas_panel"
+    if not Path(f"{prefix}.bed").exists():
+        export_sas_panel(cfg)
+    panel, bim = build_panel(prefix)
+    out = cfg.path("bundle") / "impute_panel.npz"
+    panel.save(out, chr=bim["chr"].astype(np.int8).to_numpy(), pos=bim["pos"].to_numpy(np.int32),
+               ref=bim["ref"].to_numpy("S1"), alt=bim["alt"].to_numpy("S1"))
+    log.info("imputation panel: %d variants, median best-tag r2 %.2f -> %s", len(bim), np.median(panel.r2[:, 0]), out)
+    return out
+
+
+def _load_impute(path: Path, w: pd.DataFrame, snps: pd.DataFrame) -> dict | None:
+    from qgenomix.data.impute import Panel
+
+    if not path.exists():
+        return None
+    panel, x = Panel.load(path)
+    sites = pd.DataFrame({"chr": x["chr"].astype(str), "pos": x["pos"].astype(int),
+                          "ref": x["ref"].astype(str), "alt": x["alt"].astype(str)})
+    ids = pd.Index(sites["chr"] + ":" + sites["pos"].astype(str) + ":" + sites["ref"] + ":" + sites["alt"])
+    w_idx = ids.get_indexer(w["id"])
+    m_idx = ids.get_indexer(snps["id"])
+    if (w_idx < 0).any() or (m_idx < 0).any():
+        log.warning("imputation panel does not match the PRS weights; falling back to mean imputation")
+        return None
+    return {"panel": panel, "sites": sites, "w_idx": w_idx, "m_idx": m_idx,
+            "m_effect_is_alt": snps["effect"].to_numpy() == sites["alt"].to_numpy()[m_idx]}
+
+
 def load_bundle(path: str | Path) -> dict:
     path = Path(path)
     b = joblib.load(path / "model.joblib")
@@ -134,5 +168,6 @@ def load_bundle(path: str | Path) -> dict:
     enc.eval()
     b["encoder"] = enc
     b["prs_weights"] = pd.read_parquet(path / "prs_weights.parquet")
+    b["impute"] = _load_impute(path / "impute_panel.npz", b["prs_weights"], b["snps"])
     torch.set_num_threads(4)
     return b

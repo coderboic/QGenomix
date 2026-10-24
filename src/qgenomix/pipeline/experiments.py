@@ -1,4 +1,4 @@
-"""Experiment drivers E0 to E9. Each writes JSON (and sometimes NPZ) into results/.
+"""Experiment drivers E0 to E13. Each writes JSON (and sometimes NPZ) into results/.
 
 E0  data and simulator checks (PCA, mosaic fidelity, lean phenotype)
 E1  main benchmark: all models, 3 seeds (also yields E5 entanglement ablation and E8 lean capture)
@@ -7,7 +7,12 @@ E3  sample-size curve
 E4  null scenario: false positives and p-value calibration
 E6  pair-selection strategies (QUBO vs top-K vs mRMR), from E2/E3 runs
 E7  QAOA on small sub-QUBOs: ideal simulator, noisy FakeKingston simulator (and IBM hardware via script)
+E7b error mitigation (readout correction, post-selection, zero-noise extrapolation) for the E7 circuits
 E9  transfer to real 1000 Genomes genomes by ancestry
+E10 lifestyle what-ifs of the deployed app against the simulator's true effect
+E11 fairness across South Asian populations and sexes, on real genomes
+E12 robustness of the conclusions to the simulator's assumptions
+E13 LD-aware imputation of variants missing from consumer DNA files
 """
 
 from __future__ import annotations
@@ -372,4 +377,260 @@ def e10_lifestyle(cfg: Config, n: int = 10000) -> dict:
                  100 * out["scenarios"][name]["model_relative_change"],
                  100 * out["scenarios"][name]["true_relative_change"])
     save_json(out, _out(cfg, "e10_lifestyle.json"))
+    return out
+
+
+# ---------------------------------------------------------------- E7b
+def e7b_mitigation(cfg: Config, depths=(1, 2), shots: int = 2000, scales=(1, 3, 5)) -> dict:
+    """Error mitigation for the E7 QAOA circuits on the IBM Kingston noise model.
+
+    Re-uses the angles trained in E7 (results/e7_qaoa.json) and the saved sub-problems, and reports the
+    approximation ratio raw, after readout correction, after post-selection and after zero-noise extrapolation.
+    """
+    from qiskit_aer import AerSimulator
+    from qiskit_ibm_runtime.fake_provider import FakeKingston
+
+    from qgenomix.search.mitigation import mitigated_run
+    from qgenomix.search.qaoa import SelectionProblem, baselines
+
+    e7 = load_results(cfg, "e7_qaoa.json")
+    backend = AerSimulator.from_backend(FakeKingston())
+    rows = []
+    for entry in e7["problems"]:
+        b = entry["block"]
+        d = np.load(cfg.path("results") / f"e7_problem{b}.npz")
+        prob = SelectionProblem(r=d["r"], R=d["R"], k=int(d["k"]), lam=float(d["lam"]))
+        random_valid = baselines(prob)["uniform_feasible"]["approx_ratio"]
+        for run in entry["runs"]:
+            if run["depth"] not in depths:
+                continue
+            t0 = time.time()
+            res = mitigated_run(prob, run["formulation"], np.array(run["params"]), backend, shots=shots,
+                                scales=scales, seed=b * 10 + run["depth"])
+            rows.append({"block": b, "formulation": run["formulation"], "depth": run["depth"],
+                         "ideal": run["ideal"]["approx_ratio"], "random_valid": random_valid,
+                         "seconds": time.time() - t0, **res})
+            log.info("E7b block %d %s p=%d: ideal %.3f raw %.3f readout %.3f +post %.3f +zne %.3f (%.0fs)", b,
+                     run["formulation"], run["depth"], rows[-1]["ideal"], res["raw"], res["readout"],
+                     res["readout_postselect"], res["readout_postselect_zne"], rows[-1]["seconds"])
+    out = {"backend": "FakeKingston (IBM Heron r2 noise model)", "shots": shots, "scales": list(scales), "runs": rows}
+    save_json(out, _out(cfg, "e7b_mitigation.json"))
+    return out
+
+
+# ---------------------------------------------------------------- E11
+def e11_fairness(cfg: Config, n_train: int = 20000, pheno_seeds=range(20)) -> dict:
+    """Does one model serve every South Asian population and both sexes equally?
+
+    Models are trained on synthetic South Asians; outcomes are simulated on the 489 real South Asian genomes of
+    1000 Genomes (Gujarati, Punjabi, Bengali, Sri Lankan Tamil, Telugu), 20 outcome draws. For each group:
+    AUC of the clinical and the clinical + genetic model, calibration (observed / expected cases) and the share
+    of the group's cases caught when the top 20% of all South Asians are screened.
+    """
+    from qgenomix.eval.metrics import auc
+    from qgenomix.models import zoo
+    from qgenomix.pipeline.run import clinical_features
+
+    rng = seed_everything(cfg["seed"] + 11)
+    train = synthetic_sas(cfg, n_train, rng)
+    focus = tuple(cfg["focus_pair"])
+    planted = choose_planted_pairs(train.snps, focus, cfg["simulator"]["n_planted"],
+                                   cfg["simulator"]["planted_min_maf"], rng)
+    ph_tr = simulate(train, _sim(cfg), focus, rng, planted=planted)
+    y_tr = ph_tr.y.astype(int)
+    A_tr, C_tr = additive_features(train, ph_tr), clinical_features(ph_tr)
+    real = load_real(cfg)
+    idx = np.flatnonzero(real.meta["SuperPop"].to_numpy() == "SAS")
+    sas = real.subset(idx)
+    pop = sas.meta["Population"].to_numpy()
+    sex = np.where(sas.meta["SEX"].to_numpy() == 1, "male", "female")
+    groups = {**{p: pop == p for p in sorted(set(pop))}, "male": sex == "male", "female": sex == "female",
+              "all": np.ones(sas.n, bool)}
+    pooled = {g: {"y": [], "clinical": [], "genetic": []} for g in groups}
+    per_seed = {g: {"oe": [], "capture_clinical": [], "capture_genetic": []} for g in groups}
+    budget = cfg["eval"]["screen_budget"]
+    for s_ in pheno_seeds:
+        ph = simulate(sas, _sim(cfg), focus, np.random.default_rng(11_000 + s_), planted=planted)
+        y = ph.y.astype(int)
+        p_c = zoo.fit_lr(C_tr, y_tr, clinical_features(ph))
+        p_g = zoo.fit_lr(A_tr, y_tr, additive_features(sas, ph))
+        flag = {}
+        for name, p in (("clinical", p_c), ("genetic", p_g)):
+            f = np.zeros(sas.n, bool)
+            f[np.argsort(-p)[: int(round(budget * sas.n))]] = True
+            flag[name] = f
+        for g, m in groups.items():
+            pooled[g]["y"].append(y[m])
+            pooled[g]["clinical"].append(p_c[m])
+            pooled[g]["genetic"].append(p_g[m])
+            per_seed[g]["oe"].append(float(y[m].sum() / p_g[m].sum()))
+            for name in ("clinical", "genetic"):
+                cases = m & (y == 1)
+                per_seed[g][f"capture_{name}"].append(float(flag[name][cases].mean()) if cases.any() else np.nan)
+    out = {"n": {g: int(m.sum()) for g, m in groups.items()}, "groups": {}}
+    for g in groups:
+        yy = np.concatenate(pooled[g]["y"])
+        out["groups"][g] = {
+            "auc_clinical": auc(yy, np.concatenate(pooled[g]["clinical"])),
+            "auc_genetic": auc(yy, np.concatenate(pooled[g]["genetic"])),
+            "prevalence": float(yy.mean()),
+            **{k: [float(np.nanmean(v)), float(np.nanstd(v))] for k, v in per_seed[g].items()},
+        }
+        log.info("E11 %-7s n=%3d AUC clinical %.3f genetic %.3f O/E %.2f", g, out["n"][g],
+                 out["groups"][g]["auc_clinical"], out["groups"][g]["auc_genetic"], out["groups"][g]["oe"][0])
+    save_json(out, _out(cfg, "e11_fairness.json"))
+    return out
+
+
+# ---------------------------------------------------------------- E12
+def e12_robustness(cfg: Config, seeds=range(2), n: int = 10000) -> dict:
+    """Do the main conclusions survive different simulator assumptions? One parameter changed at a time."""
+    from sklearn.model_selection import train_test_split
+
+    from qgenomix.eval.metrics import auc, screen_capture
+    from qgenomix.models import zoo
+    from qgenomix.pipeline.run import clinical_features
+
+    sim = cfg["simulator"]
+    half = {k: v / 2 for k, v in sim["var_mech"].items()}
+    more = {k: v * 1.5 for k, v in sim["var_mech"].items()}
+    clin = dict(sim["clinical"])
+    settings = [
+        ("default", {}),
+        ("no mechanism interaction (γ = 0)", {"gamma": 0.0}),
+        ("double mechanism interaction (γ = 0.28)", {"gamma": 0.28}),
+        ("weaker gene pairs (δ = 0.1)", {"delta": 0.1}),
+        ("stronger gene pairs (δ = 0.3)", {"delta": 0.3}),
+        ("half background PRS", {"var_bg": sim["var_bg"] / 2}),
+        ("1.5× background PRS", {"var_bg": sim["var_bg"] * 1.5}),
+        ("half mechanism scores", {"var_mech": half}),
+        ("1.5× mechanism scores", {"var_mech": more}),
+        ("prevalence 8%", {"prevalence": 0.08}),
+        ("prevalence 15%", {"prevalence": 0.15}),
+        ("half age effect", {"clinical": clin | {"var_age": clin["var_age"] / 2}}),
+        ("double age effect", {"clinical": clin | {"var_age": clin["var_age"] * 2}}),
+    ]
+    budget, lean = cfg["eval"]["screen_budget"], cfg["eval"]["lean_bmi"]
+    rows = []
+    for label, over in settings:
+        for s in seeds:
+            rng = seed_everything(cfg["seed"] + 12_000 + s)
+            cohort = synthetic_sas(cfg, n, rng)
+            ph = simulate(cohort, _sim(cfg, **over), tuple(cfg["focus_pair"]), rng)
+            y = ph.y.astype(int)
+            dev, te = train_test_split(np.arange(n), test_size=cfg["cv"]["test_frac"], stratify=y, random_state=s)
+            A, C = additive_features(cohort, ph), clinical_features(ph)
+            preds = {"idrs": ph.clinical["idrs"][te].astype(float),
+                     "clinical": zoo.fit_lr(C[dev], y[dev], C[te]),
+                     "genetic": zoo.fit_lr(A[dev], y[dev], A[te])}
+            row = {"setting": label, "seed": s}
+            for name, p in preds.items():
+                row[f"auc_{name}"] = auc(y[te], p)
+                row[f"lean_capture_{name}"] = screen_capture(y[te], ph.bmi[te], p, budget, lean)["lean_case_capture"]
+            row["edr10_score_test"] = search_only(cohort, ph, cfg, s)["edr"]["score_test"]["edr@10"]
+            rows.append(row)
+            log.info("E12 %-42s seed %d: AUC clin %.3f gen %.3f | lean IDRS %.2f gen %.2f | EDR@10 %.2f", label, s,
+                     row["auc_clinical"], row["auc_genetic"], row["lean_capture_idrs"], row["lean_capture_genetic"],
+                     row["edr10_score_test"])
+    summary = {}
+    for label, _ in settings:
+        rs = [r for r in rows if r["setting"] == label]
+        summary[label] = {k: float(np.mean([r[k] for r in rs])) for k in rs[0] if k not in ("setting", "seed")}
+    out = {"rows": rows, "summary": summary, "n": n, "seeds": list(seeds)}
+    save_json(out, _out(cfg, "e12_robustness.json"))
+    return out
+
+
+# ---------------------------------------------------------------- E13
+def e13_imputation(cfg: Config, n_test: int = 100, coverages=(0.25, 0.45, 0.65), n_masks: int = 3) -> dict:
+    """Consumer DNA files miss many PRS variants. How much does LD-aware imputation recover?
+
+    100 real South Asian genomes are held out; the LD panel is built from the other 389. For a simulated chip
+    (the same random subset of variants for everyone, at 25%, 45% and 65% coverage), scores are computed with
+    missing variants filled by the population mean (the old method) or by LD imputation, and compared with the
+    full-genome scores: PRS correlation, mechanism SNP error and the app's risk percentile and high-risk flag.
+    """
+    import pandas as pd
+
+    from qgenomix.app.bundle import load_bundle, predict
+    from qgenomix.data.cohort import Cohort, load_snps
+    from qgenomix.data.impute import apply, build_panel, plan, read_bed
+    from qgenomix.pipeline.run import clinical_features
+
+    proc = cfg.path("processed")
+    prefix = proc / "sas_panel"
+    fam = pd.read_csv(f"{prefix}.fam", sep=r"\s+", header=None)[1].to_numpy()
+    n = len(fam)
+    rng = seed_everything(cfg["seed"] + 13)
+    test = np.sort(rng.choice(n, n_test, replace=False))
+    ref = np.setdiff1d(np.arange(n), test)
+    t0 = time.time()
+    panel, bim = build_panel(prefix, keep=ref)
+    t_panel = time.time() - t0
+    X = read_bed(prefix, n)[test]
+    X = np.where(np.isnan(X), panel.mean, X).astype(np.float32)
+    ids = pd.Index(bim["id"])
+    anc = list(cfg["background_prs"])
+    w = pd.read_csv(proc / "dprism_alt.tsv", sep="\t")
+    widx = ids.get_indexer(w["id"])
+    assert (widx >= 0).all()
+    W = w[anc].to_numpy(np.float32)
+    snps = load_snps(cfg)
+    midx = ids.get_indexer(snps["id"])
+    eff_alt = (snps["effect"].to_numpy() == bim["alt"].to_numpy()[midx])
+
+    def scores(D):
+        g = np.where(eff_alt, D[:, midx], 2 - D[:, midx])
+        return D[:, widx] @ W, g
+
+    prs_full, g_full = scores(X)
+    real = load_real(cfg)
+    order = pd.Index(real.meta["IID"]).get_indexer(fam[test])
+    prs_check = float(np.corrcoef(prs_full[:, -1], real.prs[order, -1])[0, 1])
+    b = load_bundle(cfg.path("bundle"))
+    ph = simulate(Cohort(g_full, prs_full.astype(np.float64), snps), _sim(cfg), tuple(cfg["focus_pair"]),
+                  np.random.default_rng(13))
+    C = clinical_features(ph)
+
+    def risk_pct(prs, g):
+        r, _ = predict(b, prs.astype(np.float64), C, g.astype(np.float32))
+        return 100 * np.searchsorted(b["risk_ref"], r) / len(b["risk_ref"])
+
+    pct_full = risk_pct(prs_full, g_full)
+    high_full = pct_full >= 80
+    rows = []
+    for cov in coverages:
+        for s in range(n_masks):
+            obs = np.random.default_rng(1300 + s).random(len(bim)) < cov
+            t1 = time.time()
+            pl = plan(obs, panel)
+            X_imp = np.vstack([apply(X[i:i + 25], pl, panel) for i in range(0, n_test, 25)])
+            t_imp = (time.time() - t1) / n_test
+            X_mean = np.where(obs, X, panel.mean)
+            row = {"coverage": cov, "mask": s, "seconds_per_person": t_imp,
+                   "prs_tagged_r2_ge_05": float((pl.quality[widx][~obs[widx]] >= 0.5).mean()),
+                   "prs_mean_filled": float((pl.quality[widx][~obs[widx]] == 0).mean())}
+            for name, D in (("mean_fill", X_mean), ("ld_impute", X_imp)):
+                prs, g = scores(D)
+                pct = risk_pct(prs, g)
+                masked_m = ~obs[midx]
+                row[name] = {
+                    "prs_r": [float(np.corrcoef(prs_full[:, j], prs[:, j])[0, 1]) for j in range(len(anc))],
+                    "prs_sd_ratio": float(prs[:, -1].std() / prs_full[:, -1].std()),
+                    "mech_mae_masked": float(np.abs(g - g_full)[:, masked_m].mean()) if masked_m.any() else 0.0,
+                    "risk_pct_mae": float(np.abs(pct - pct_full).mean()),
+                    "high_risk_kept": float((pct[high_full] >= 80).mean()) if high_full.any() else float("nan"),
+                    "high_risk_false": float((pct[~high_full] >= 80).mean()),
+                }
+            rows.append(row)
+            log.info("E13 coverage %.2f mask %d: PRS r mean-fill %.3f LD %.3f | risk pct error %.1f vs %.1f | "
+                     "high-risk kept %.2f vs %.2f", cov, s, row["mean_fill"]["prs_r"][-1],
+                     row["ld_impute"]["prs_r"][-1], row["mean_fill"]["risk_pct_mae"],
+                     row["ld_impute"]["risk_pct_mae"], row["mean_fill"]["high_risk_kept"],
+                     row["ld_impute"]["high_risk_kept"])
+    out = {"n_test": n_test, "n_reference": int(len(ref)), "n_variants": int(len(bim)), "panel_seconds": t_panel,
+           "best_tag_r2_median": float(np.median(panel.r2[:, 0])),
+           "best_tag_r2_ge_08": float((panel.r2[:, 0] >= 0.8).mean()),
+           "prs_check_vs_plink": prs_check, "n_high_risk_full": int(high_full.sum()), "rows": rows}
+    save_json(out, _out(cfg, "e13_imputation.json"))
     return out

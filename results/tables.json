@@ -2192,5 +2192,379 @@
         "corr_individual_change": 0.8324456526418795
       }
     }
+  },
+  "e11": {
+    "n": {
+      "BEB": 86,
+      "GIH": 103,
+      "ITU": 102,
+      "PJL": 96,
+      "STU": 102,
+      "male": 260,
+      "female": 229,
+      "all": 489
+    },
+    "groups": {
+      "BEB": {
+        "auc_clinical": 0.8009764216366159,
+        "auc_genetic": 0.8726546463245493,
+        "prevalence": 0.10174418604651163,
+        "oe": [
+          0.8286911729035659,
+          0.20290613391368506
+        ],
+        "capture_clinical": [
+          0.5231782106782107,
+          0.1635759810897919
+        ],
+        "capture_genetic": [
+          0.6590782828282828,
+          0.1635912856125374
+        ]
+      },
+      "GIH": {
+        "auc_clinical": 0.8171482145647467,
+        "auc_genetic": 0.8840738232894073,
+        "prevalence": 0.10631067961165049,
+        "oe": [
+          0.8584710597185918,
+          0.17229925008516891
+        ],
+        "capture_clinical": [
+          0.6009711122211122,
+          0.12820234130464614
+        ],
+        "capture_genetic": [
+          0.7206048118548118,
+          0.14733279687349507
+        ]
+      },
+      "ITU": {
+        "auc_clinical": 0.8371321525095405,
+        "auc_genetic": 0.9207206736959321,
+        "prevalence": 0.09117647058823529,
+        "oe": [
+          0.9551598378117298,
+          0.20874704624018417
+        ],
+        "capture_clinical": [
+          0.6160461760461761,
+          0.15754668616184705
+        ],
+        "capture_genetic": [
+          0.7360678210678211,
+          0.1317985516470445
+        ]
+      },
+      "PJL": {
+        "auc_clinical": 0.7934856674555014,
+        "auc_genetic": 0.8429106161198537,
+        "prevalence": 0.13645833333333332,
+        "oe": [
+          0.8779578569013197,
+          0.10341820958014095
+        ],
+        "capture_clinical": [
+          0.5882545395780691,
+          0.14073209096510117
+        ],
+        "capture_genetic": [
+          0.6877098269377682,
+          0.1043519477251291
+        ]
+      },
+      "STU": {
+        "auc_clinical": 0.8714103843535194,
+        "auc_genetic": 0.9238451207341982,
+        "prevalence": 0.11666666666666667,
+        "oe": [
+          0.9301817905340724,
+          0.18156564470395486
+        ],
+        "capture_clinical": [
+          0.7032891414141413,
+          0.15657202651315147
+        ],
+        "capture_genetic": [
+          0.7865632978132978,
+          0.14156831373992212
+        ]
+      },
+      "male": {
+        "auc_clinical": 0.8224586676442904,
+        "auc_genetic": 0.8942109742251594,
+        "prevalence": 0.10326923076923077,
+        "oe": [
+          0.894277319059329,
+          0.09244918564136541
+        ],
+        "capture_clinical": [
+          0.5752563058928464,
+          0.08205305079322489
+        ],
+        "capture_genetic": [
+          0.7114915178495547,
+          0.06951474298325062
+        ]
+      },
+      "female": {
+        "auc_clinical": 0.8277950139843646,
+        "auc_genetic": 0.8882961519389478,
+        "prevalence": 0.1185589519650655,
+        "oe": [
+          0.8822335275909671,
+          0.08115786020560192
+        ],
+        "capture_clinical": [
+          0.6363312790754695,
+          0.10711210296706167
+        ],
+        "capture_genetic": [
+          0.7248059574559762,
+          0.08578197112119104
+        ]
+      },
+      "all": {
+        "auc_clinical": 0.8253374840357599,
+        "auc_genetic": 0.8916261174968072,
+        "prevalence": 0.11042944785276074,
+        "oe": [
+          0.8884980215225626,
+          0.0399187561327297
+        ],
+        "capture_clinical": [
+          0.6074074074074074,
+          0.0681924171834147
+        ],
+        "capture_genetic": [
+          0.7166666666666667,
+          0.04972489474850945
+        ]
+      }
+    }
+  },
+  "e12": {
+    "default": {
+      "auc_idrs": 0.7618622318692544,
+      "lean_capture_idrs": 0.2921245421245421,
+      "auc_clinical": 0.8228894279877426,
+      "lean_capture_clinical": 0.3255494505494505,
+      "auc_genetic": 0.8852719611848825,
+      "lean_capture_genetic": 0.4903846153846154,
+      "edr10_score_test": 0.75
+    },
+    "no mechanism interaction (\u03b3 = 0)": {
+      "auc_idrs": 0.7561599846782432,
+      "lean_capture_idrs": 0.33016304347826086,
+      "auc_clinical": 0.8175459652706843,
+      "lean_capture_clinical": 0.36367753623188404,
+      "auc_genetic": 0.861832226762002,
+      "lean_capture_genetic": 0.5235507246376812,
+      "edr10_score_test": 0.6
+    },
+    "double mechanism interaction (\u03b3 = 0.28)": {
+      "auc_idrs": 0.7487851123595506,
+      "lean_capture_idrs": 0.2976190476190476,
+      "auc_clinical": 0.8067811542390193,
+      "lean_capture_clinical": 0.3392857142857143,
+      "auc_genetic": 0.8620556690500512,
+      "lean_capture_genetic": 0.5654761904761905,
+      "edr10_score_test": 0.65
+    },
+    "weaker gene pairs (\u03b4 = 0.1)": {
+      "auc_idrs": 0.7360252808988764,
+      "lean_capture_idrs": 0.298936170212766,
+      "auc_clinical": 0.7929583758937693,
+      "lean_capture_clinical": 0.3302127659574468,
+      "auc_genetic": 0.8518105209397344,
+      "lean_capture_genetic": 0.44340425531914895,
+      "edr10_score_test": 0.25
+    },
+    "stronger gene pairs (\u03b4 = 0.3)": {
+      "auc_idrs": 0.7422937946884576,
+      "lean_capture_idrs": 0.3385714285714286,
+      "auc_clinical": 0.7925344739530134,
+      "lean_capture_clinical": 0.3007142857142857,
+      "auc_genetic": 0.8649859550561798,
+      "lean_capture_genetic": 0.5078571428571428,
+      "edr10_score_test": 0.95
+    },
+    "half background PRS": {
+      "auc_idrs": 0.7549514811031665,
+      "lean_capture_idrs": 0.3598178137651822,
+      "auc_clinical": 0.7986338100102146,
+      "lean_capture_clinical": 0.3038124156545209,
+      "auc_genetic": 0.8421501532175689,
+      "lean_capture_genetic": 0.4124493927125506,
+      "edr10_score_test": 0.6
+    },
+    "1.5\u00d7 background PRS": {
+      "auc_idrs": 0.7725989530132789,
+      "lean_capture_idrs": 0.38265306122448983,
+      "auc_clinical": 0.8282456588355464,
+      "lean_capture_clinical": 0.413265306122449,
+      "auc_genetic": 0.8875791624106231,
+      "lean_capture_genetic": 0.6020408163265306,
+      "edr10_score_test": 0.75
+    },
+    "half mechanism scores": {
+      "auc_idrs": 0.7246622829417773,
+      "lean_capture_idrs": 0.2671186440677966,
+      "auc_clinical": 0.7884218590398365,
+      "lean_capture_clinical": 0.2986440677966102,
+      "auc_genetic": 0.8270658835546476,
+      "lean_capture_genetic": 0.4288135593220339,
+      "edr10_score_test": 0.6499999999999999
+    },
+    "1.5\u00d7 mechanism scores": {
+      "auc_idrs": 0.7641049540347292,
+      "lean_capture_idrs": 0.33872549019607845,
+      "auc_clinical": 0.8078600612870275,
+      "lean_capture_clinical": 0.35980392156862745,
+      "auc_genetic": 0.8748838100102145,
+      "lean_capture_genetic": 0.5480392156862746,
+      "edr10_score_test": 0.65
+    },
+    "prevalence 8%": {
+      "auc_idrs": 0.7927131453804348,
+      "lean_capture_idrs": 0.3218390804597701,
+      "auc_clinical": 0.8299303668478262,
+      "lean_capture_clinical": 0.36015325670498083,
+      "auc_genetic": 0.8794921875,
+      "lean_capture_genetic": 0.590676883780332,
+      "edr10_score_test": 0.6499999999999999
+    },
+    "prevalence 15%": {
+      "auc_idrs": 0.7282475490196079,
+      "lean_capture_idrs": 0.2605157131345689,
+      "auc_clinical": 0.7741848039215686,
+      "lean_capture_clinical": 0.24778404512489927,
+      "auc_genetic": 0.8429833333333333,
+      "lean_capture_genetic": 0.4064464141821112,
+      "edr10_score_test": 0.8500000000000001
+    },
+    "half age effect": {
+      "auc_idrs": 0.738914708886619,
+      "lean_capture_idrs": 0.29245283018867924,
+      "auc_clinical": 0.7927170582226761,
+      "lean_capture_clinical": 0.3113207547169811,
+      "auc_genetic": 0.8463904494382022,
+      "lean_capture_genetic": 0.4811320754716981,
+      "edr10_score_test": 0.65
+    },
+    "double age effect": {
+      "auc_idrs": 0.775933988764045,
+      "lean_capture_idrs": 0.3813497822931785,
+      "auc_clinical": 0.8337065883554647,
+      "lean_capture_clinical": 0.41926705370101597,
+      "auc_genetic": 0.8879915730337078,
+      "lean_capture_genetic": 0.5716618287373004,
+      "edr10_score_test": 0.7
+    }
+  },
+  "e13": {
+    "n_test": 100,
+    "n_reference": 389,
+    "n_variants": 1456365,
+    "panel_seconds": 124.61479306221008,
+    "best_tag_r2_median": 0.8984988331794739,
+    "best_tag_r2_ge_08": 0.6380035224686119,
+    "prs_check_vs_plink": 0.9999999999913562,
+    "n_high_risk_full": 23,
+    "summary": {
+      "mean_fill": {
+        "PRS agreement with the full genome": [
+          [
+            0.8704659995430536,
+            0.003489708206110062
+          ],
+          [
+            0.9489619934448896,
+            0.00828465049651027
+          ],
+          [
+            0.9743449233616991,
+            0.0009109239182419389
+          ]
+        ],
+        "Error in the risk percentile shown": [
+          [
+            16.0757,
+            0.5561135240817906
+          ],
+          [
+            13.201583333333332,
+            0.47532023649558924
+          ],
+          [
+            9.0693,
+            0.9551509095425699
+          ]
+        ],
+        "High-risk people still flagged high": [
+          [
+            0.5652173913043478,
+            0.07099970268936748
+          ],
+          [
+            0.5362318840579711,
+            0.02049584873004484
+          ],
+          [
+            0.7391304347826088,
+            0.09392377823779506
+          ]
+        ]
+      },
+      "ld_impute": {
+        "PRS agreement with the full genome": [
+          [
+            0.9440881766222414,
+            0.003194105699112777
+          ],
+          [
+            0.9820623037682958,
+            0.003012280848158353
+          ],
+          [
+            0.993582457792713,
+            0.0002443799190388606
+          ]
+        ],
+        "Error in the risk percentile shown": [
+          [
+            8.74145,
+            0.450126561831966
+          ],
+          [
+            6.2883,
+            0.7999646065087297
+          ],
+          [
+            3.992516666666667,
+            0.20058996873112997
+          ]
+        ],
+        "High-risk people still flagged high": [
+          [
+            0.7101449275362318,
+            0.02049584873004484
+          ],
+          [
+            0.7971014492753623,
+            0.08933933337636196
+          ],
+          [
+            0.9130434782608695,
+            0.06148754619013458
+          ]
+        ]
+      }
+    },
+    "coverages": [
+      0.25,
+      0.45,
+      0.65
+    ]
   }
 }

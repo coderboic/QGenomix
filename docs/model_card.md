@@ -11,6 +11,8 @@ been clinically validated, and must not be used for diagnosis or treatment decis
 ## Model
 * **Inputs:** a GRCh37 genotype file (23andMe or AncestryDNA), age, sex, BMI, waist, physical activity
   (4 levels) and parents with diabetes (0, 1, 2). The IDRS questionnaire score is computed from the same answers.
+* **Missing variants:** imputed from the best-correlated measured neighbour (LD imputation) using the 489 South
+  Asian genomes of 1000 Genomes; variants with no usable neighbour get the South Asian mean.
 * **Features:** D-PRISM multi-ancestry PRS (5 PRS-CSx components, PGS005373–005377); five published
   mechanism scores (PGS005115–005119); 62 mechanism SNP dosages; 96 features from a 12-circuit, 8-qubit
   variational quantum circuit (VQC) that encodes 48 cross-mechanism SNP pairs chosen by a QUBO.
@@ -36,12 +38,20 @@ been clinically validated, and must not be used for diagnosis or treatment decis
   0% BMI rule (E8).
 * Lifestyle what-ifs (E10): estimated vs true relative risk change, waist −5 cm −28% vs −28%, regular exercise
   −32% vs −40% (conservative).
-* Partial consumer files: risk is pulled towards average when coverage is low (the report warns below 80%).
+* Partial consumer files (E13, 100 held-out real South Asian genomes): at 45% of PRS variants, LD imputation
+  cuts the risk-percentile error from 13 to 6 points and keeps 80% of truly high-risk people flagged (54% with
+  mean filling). The report warns when less than 80% of variants are measured or reliably imputed.
+* Output: on-screen report, JSON (`POST /v1/profile`) or a one-page PDF (`POST /v1/report.pdf`).
 
 ## Bias and fairness
 Trained only on South Asian haplotypes. E9 tests transfer to real 1000 Genomes genomes of five ancestries;
 performance differences across ancestries are reported there. Within South Asia, the mosaic mixes Gujarati,
 Punjabi, Bengali, Telugu and Tamil haplotypes, which removes population substructure that real cohorts have.
+E11 therefore tests each real South Asian population and both sexes separately (20 simulated outcome draws on the
+489 real genomes): the clinical + genetic model improves on clinical factors in every group, with AUC from 0.84
+(Punjabi) to 0.92 (Sri Lankan Tamil, Telugu) and 0.89 in both men and women. With about 100 people per population
+these differences are within sampling noise. Predicted risks run about 11% high on real genomes (observed /
+expected 0.89), equally in every group; recalibration on local data, not a group-specific correction, is the fix.
 
 ## Explainability
 Every report lists the mechanism percentiles, the combination flag rule (β-cell and lipodystrophy both
@@ -59,5 +69,8 @@ synthetic mosaics, not real people.
 * Simulated outcomes: real-world accuracy is unknown until validated on a consented Indian cohort
   (for example GenomeIndia via IBDC managed access).
 * The quantum circuits run on a classical simulator; an 8-qubit circuit gives no computational advantage.
-* Consumer genotyping files cover only part of the 1.3M PRS variants; missing ones are imputed at the
-  South Asian mean, which shrinks scores towards average.
+* Consumer genotyping files cover only part of the 1.3M PRS variants. LD imputation recovers most of the lost
+  accuracy, but it uses a single tag per variant and a 489-person reference panel; a full imputation server
+  (for example Beagle with a larger panel) would do better.
+* E12 shows the clinical conclusions hold across thirteen alternative simulator settings, but interaction
+  discovery depends strongly on the assumed effect sizes.

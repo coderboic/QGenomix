@@ -9,6 +9,9 @@ description = "Quantum-assisted search for cross-mechanism gene interactions in 
 requires-python = ">=3.11"
 readme = "README.md"
 
+[tool.setuptools.package-data]
+qgenomix = ["app/assets/*"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

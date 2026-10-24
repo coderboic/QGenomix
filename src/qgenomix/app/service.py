@@ -23,9 +23,12 @@ CLUSTER_LABEL = {
     "proinsulin": "Proinsulin processing",
 }
 # Consumer chips (23andMe, AncestryDNA) carry ~600k SNPs, so they cover roughly 40-50% of the 1.3M PRS
-# variants. Missing variants are imputed at the South Asian mean, which pulls scores toward average:
+# variants. Missing variants are imputed from their best-correlated measured neighbour (LD imputation, see
+# qgenomix.data.impute) when the bundle has a panel, else at the South Asian mean, which pulls scores toward
+# average. "Effective coverage" counts measured variants plus those imputed from a tag with r^2 >= WELL_TAGGED;
 # below GOOD_COVERAGE the report says so; below the hard floors the file is probably the wrong build/format.
 GOOD_COVERAGE = 0.8
+WELL_TAGGED = 0.5
 MIN_PRS_COVERAGE = 0.10
 MIN_MECH_COVERAGE = 0.30
 
@@ -55,6 +58,8 @@ class GenoFeatures:
     observed: np.ndarray     # (62,) which mechanism SNPs were in the file
     prs_coverage: float
     n_calls: int
+    prs_effective: float = 0.0  # measured + imputed from a tag with r^2 >= WELL_TAGGED
+    imputation: str = "mean"     # "ld" or "mean"
 
 
 def _pct(ref_sorted: np.ndarray, v: float) -> float:
@@ -72,17 +77,31 @@ class ProfileService:
     # ---------------------------------------------------------------- slow part
     def genotype_features(self, genotype_bytes: bytes) -> GenoFeatures:
         calls = read_genotype_file(genotype_bytes)
-        alt_d, obs = allele_dosage(calls, self.w, "alt", "ref")
-        alt_d = np.where(obs, alt_d, 2 * self.w["alt_freq"].to_numpy())
+        imp = self.b.get("impute")
+        if imp is not None:
+            from qgenomix.data.impute import impute
+
+            d, obs_all = allele_dosage(calls, imp["sites"], "alt", "ref")
+            full, quality = impute(d, obs_all, imp["panel"])
+            obs, mobs = obs_all[imp["w_idx"]], obs_all[imp["m_idx"]]
+            alt_d = full[imp["w_idx"]]
+            gm = full[imp["m_idx"]]
+            g = np.where(imp["m_effect_is_alt"], gm, 2 - gm)
+            effective = float((quality[imp["w_idx"]] >= WELL_TAGGED).mean())
+        else:
+            alt_d, obs = allele_dosage(calls, self.w, "alt", "ref")
+            alt_d = np.where(obs, alt_d, 2 * self.w["alt_freq"].to_numpy())
+            g, mobs = allele_dosage(calls, self.snps, "effect", "other")
+            g = np.where(mobs, g, 2 * self.snps["eaf_sas"].to_numpy())
+            effective = float(obs.mean())
         prs = alt_d @ self.w[self.anc].to_numpy()
-        g, mobs = allele_dosage(calls, self.snps, "effect", "other")
-        g = np.where(mobs, g, 2 * self.snps["eaf_sas"].to_numpy())
         prs_cov, mech_cov = float(obs.mean()), float(mobs.mean())
         if prs_cov < MIN_PRS_COVERAGE or mech_cov < MIN_MECH_COVERAGE:
             raise ValueError(f"Too few of the required SNPs were found (PRS variants {prs_cov:.0%}, mechanism SNPs "
                              f"{mech_cov:.0%}). This usually means the file is not on genome build GRCh37 (hg19), "
                              "or it is not a genotype file.")
-        return GenoFeatures(prs=prs, g=g, observed=mobs, prs_coverage=prs_cov, n_calls=int(len(calls)))
+        return GenoFeatures(prs=prs, g=g, observed=mobs, prs_coverage=prs_cov, n_calls=int(len(calls)),
+                            prs_effective=effective, imputation="ld" if imp is not None else "mean")
 
     # ---------------------------------------------------------------- fast part
     def risk(self, f: GenoFeatures, form: Form) -> tuple[float, np.ndarray]:
@@ -150,11 +169,13 @@ class ProfileService:
             "contributions": {"genetic": genetic_shap, **clinical_shap},
             "what_if": self.what_if(f, form),
             "prs_percentile": _pct(b["prs_ref"], float(f.prs[-1])),
-            "coverage": {"prs_variants": f.prs_coverage, "mechanism_snps": float(f.observed.mean()),
-                         "n_calls": f.n_calls, "low": bool(min(f.prs_coverage, f.observed.mean()) < GOOD_COVERAGE)},
+            "coverage": {"prs_variants": f.prs_coverage, "prs_effective": f.prs_effective,
+                         "imputation": f.imputation, "mechanism_snps": float(f.observed.mean()), "n_calls": f.n_calls,
+                         "low": bool(f.prs_effective < GOOD_COVERAGE
+                                     or (f.imputation == "mean" and f.observed.mean() < GOOD_COVERAGE))},
             "missing_mechanism_snps": [str(x) for x in missing],
             "advice": advice(tier, lean, combo, form),
-            "model_version": f"2.1+{b['config_hash']}",
+            "model_version": f"2.2+{b['config_hash']}",
             "disclaimer": "Research prototype trained on simulated outcomes. Not a diagnosis.",
         }
 

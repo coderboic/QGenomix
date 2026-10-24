@@ -2,8 +2,9 @@
 
     uvicorn qgenomix.app.api:app --port 8000        (run from the repo root with src/ on PYTHONPATH)
 
-POST /v1/profile   multipart form: genotype (file), age, sex, bmi, waist_cm, activity (0 vigorous .. 3 sedentary),
-                   family_history (0 none, 1 one parent, 2 both parents)  ->  report JSON with IDRS and what-ifs
+POST /v1/profile     multipart form: genotype (file), age, sex, bmi, waist_cm, activity (0 vigorous .. 3 sedentary),
+                     family_history (0 none, 1 one parent, 2 both parents)  ->  report JSON with IDRS and what-ifs
+POST /v1/report.pdf  same form  ->  the report as a one-page PDF
 GET  /v1/personas  the three synthetic demo personas
 GET  /v1/health
 Uploaded files are processed in memory and never written to disk.
@@ -16,7 +17,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
 
 from qgenomix.app.parser import GenotypeFileError
 from qgenomix.app.service import Form as ProfileForm
@@ -48,10 +49,8 @@ def personas() -> dict:
     return json.loads(path.read_text())
 
 
-@app.post("/v1/profile")
-async def profile(genotype: UploadFile = File(...), age: int = Form(...), sex: str = Form(...),
-                  bmi: float = Form(...), waist_cm: float = Form(...), activity: int = Form(2),
-                  family_history: int = Form(0)) -> dict:
+async def _report(genotype: UploadFile, age: int, sex: str, bmi: float, waist_cm: float, activity: int,
+                  family_history: int) -> tuple[dict, ProfileForm]:
     checks = [(18 <= age <= 100, "Age must be between 18 and 100."),
               (sex.upper()[:1] in ("F", "M"), "Sex must be F or M."),
               (10 <= bmi <= 70, "BMI must be between 10 and 70 kg/m²."),
@@ -67,8 +66,27 @@ async def profile(genotype: UploadFile = File(...), age: int = Form(...), sex: s
     try:
         form = ProfileForm(age=age, sex=sex, bmi=bmi, waist_cm=waist_cm, activity=activity,
                            family_history=family_history)
-        return service().profile(data, form)
+        return service().profile(data, form), form
     except GenotypeFileError as exc:
         raise HTTPException(422, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/v1/profile")
+async def profile(genotype: UploadFile = File(...), age: int = Form(...), sex: str = Form(...),
+                  bmi: float = Form(...), waist_cm: float = Form(...), activity: int = Form(2),
+                  family_history: int = Form(0)) -> dict:
+    report, _ = await _report(genotype, age, sex, bmi, waist_cm, activity, family_history)
+    return report
+
+
+@app.post("/v1/report.pdf", response_class=Response)
+async def report_pdf(genotype: UploadFile = File(...), age: int = Form(...), sex: str = Form(...),
+                     bmi: float = Form(...), waist_cm: float = Form(...), activity: int = Form(2),
+                     family_history: int = Form(0)) -> Response:
+    from qgenomix.app.pdf import render_report
+
+    report, form = await _report(genotype, age, sex, bmi, waist_cm, activity, family_history)
+    return Response(render_report(report, form), media_type="application/pdf",
+                    headers={"Content-Disposition": 'attachment; filename="qgenomix_report.pdf"'})

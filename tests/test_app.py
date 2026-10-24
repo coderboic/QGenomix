@@ -76,7 +76,7 @@ def test_duplicate_positions_and_allele_mismatch_are_handled():
 
 
 @pytest.mark.skipif(not (ROOT / "bundle" / "model.joblib").exists(), reason="bundle not built")
-def test_service_accepts_chip_coverage_with_warning_and_rejects_wrong_build():
+def test_service_imputes_chip_files_and_rejects_wrong_build():
     from qgenomix.app.service import Form, ProfileService
 
     persona = ROOT / "data" / "personas" / "meera_low.txt"
@@ -88,8 +88,52 @@ def test_service_accepts_chip_coverage_with_warning_and_rejects_wrong_build():
     chip = "\n".join(head + [b for b in body if rng.random() < 0.45])
     svc = ProfileService(str(ROOT / "bundle"))
     r = svc.profile(chip.encode(), Form(age=29, sex="F", bmi=22.4, waist_cm=74))
-    assert r["coverage"]["low"] and 0.35 < r["coverage"]["prs_variants"] < 0.55
+    cov = r["coverage"]
+    assert 0.35 < cov["prs_variants"] < 0.55
+    if cov["imputation"] == "ld":   # LD imputation fills most gaps from correlated measured variants
+        assert cov["prs_effective"] > 0.75 and not cov["low"]
+    else:                           # mean filling: the report must warn
+        assert cov["low"]
     shifted = "\n".join(f"{b.split()[0]}\t{b.split()[1]}\t{int(b.split()[2]) + 1_000_003}\t{b.split()[3]}"
                         for b in body[:200000])
     with pytest.raises(ValueError, match="GRCh37"):
         svc.profile(shifted.encode(), Form(age=29, sex="F", bmi=22.4, waist_cm=74))
+
+
+@pytest.mark.skipif(not (ROOT / "bundle" / "model.joblib").exists(), reason="bundle not built")
+def test_pdf_report_endpoint():
+    from fastapi.testclient import TestClient
+
+    from qgenomix.app.api import app
+
+    persona = ROOT / "data" / "personas" / "ravi_obese_high.txt"
+    if not persona.exists():
+        pytest.skip("personas not generated")
+    with open(persona, "rb") as fh:
+        r = TestClient(app).post("/v1/report.pdf", files={"genotype": ("p.txt", fh, "text/plain")},
+                                 data={"age": 45, "sex": "M", "bmi": 29.8, "waist_cm": 102, "activity": 3,
+                                       "family_history": 2})
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
+    assert r.content[:5] == b"%PDF-" and len(r.content) > 10_000
+
+
+def test_pdf_renders_from_a_report_dict():
+    from qgenomix.app.pdf import render_report
+    from qgenomix.app.service import Form
+
+    pct = {"beta_cell": 96.0, "lipodystrophy": 88.0, "obesity": 24.0, "liver_lipid": 4.0, "proinsulin": 0.4}
+    mech = {c: {"label": c, "percentile": p} for c, p in pct.items()}
+    report = {
+        "risk_probability": 0.23, "risk_percentile": 84.0, "risk_tier": "high", "lean": True,
+        "missed_by_bmi_screening": True, "missed_by_idrs": True, "idrs": {"score": 40, "category": "moderate"},
+        "mechanisms": mech, "combination_flag": True, "prs_percentile": 91.0,
+        "what_if": [{"change": "Regular vigorous exercise", "risk_probability": 0.15, "relative_change": -0.38}],
+        "top_pairs": [{"snp1": "rs1", "snp2": "rs2", "cluster1": "beta_cell", "cluster2": "lipodystrophy",
+                       "dosage1": 2.0, "dosage2": 1.0, "importance": 0.25}],
+        "advice": ["Ask a doctor about a fasting glucose or HbA1c test (≥ 6.5% means diabetes)."],
+        "coverage": {"prs_variants": 0.45, "prs_effective": 0.85, "imputation": "ld", "mechanism_snps": 0.4,
+                     "n_calls": 655090, "low": False},
+        "model_version": "2.2+test",
+    }
+    pdf = render_report(report, Form(age=34, sex="F", bmi=21.6, waist_cm=84, activity=2, family_history=1), "Test")
+    assert pdf[:5] == b"%PDF-" and len(pdf) > 5_000

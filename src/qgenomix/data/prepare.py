@@ -6,6 +6,7 @@ Outputs (in `paths.processed`):
   samples.tsv       IID, SuperPop, Population, Sex
   pcs_all.tsv       top 10 genetic PCs, all 2,504 samples
   sas_mosaic.npz    South Asian haplotype library for synthetic cohorts (see cohort.py)
+  sas_panel.bed     South Asian genotypes at every panel variant, for LD imputation (see impute.py)
   qc_report.json    counts at each step
 """
 
@@ -125,10 +126,19 @@ def prepare_1000g(cfg: Config, threads: int = 12) -> None:
     meta[["IID", "SuperPop", "Population", "SEX"]].to_csv(out / "samples.tsv", sep="\t", index=False)
     np.savez_compressed(out / "real.npz", G=dos, prs=prs_mat, iid=np.array(order), prs_cols=np.array(anc_cols))
 
-    # 7. South Asian haplotype library for synthetic cohorts
+    # 7. South Asian haplotype library for synthetic cohorts, and genotypes for the LD imputation panel
     build_sas_mosaic(cfg, pvar, w, mech, threads=threads, report=report)
+    export_sas_panel(cfg, threads=threads)
     save_json(report, out / "qc_report.json")
     log.info("prepare_1000g done: %s", report)
+
+
+def export_sas_panel(cfg: Config, threads: int = 12) -> Path:
+    """South Asian genotypes at all QC-passed target variants as a PLINK .bed (A1 = ALT), ~180 MB."""
+    out = cfg.path("processed")
+    plink.run(cfg.path("plink2"), "--pfile", out / "kg", "--keep", out / "sas.ids", "--make-bed",
+              "--out", out / "sas_panel", threads=threads)
+    return out / "sas_panel"
 
 
 def _read_haps(prefix: Path) -> tuple[pd.DataFrame, np.ndarray]:

@@ -11,8 +11,10 @@ data/personas/*.txt
 tools/
 bundle/model.joblib
 bundle/prs_weights.parquet
+bundle/impute_panel.npz
 logs/
 
 # keep results JSON and figures (small, needed for the report)
 results/**/*.npz
 results/**/*.npy
+docs/report/node_modules/

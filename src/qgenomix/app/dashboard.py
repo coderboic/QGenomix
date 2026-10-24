@@ -104,7 +104,7 @@ def page_report() -> None:
     form = Form(age=int(age), sex=sex, bmi=float(bmi), waist_cm=float(waist), activity=int(activity),
                 family_history=int(family))
     svc = get_service()
-    with st.spinner("Reading genotypes (about 5 seconds the first time)…"):
+    with st.spinner("Reading genotypes and imputing missing variants (about 10 seconds the first time)…"):
         try:
             feats = geno_features(data)
         except ValueError as exc:
@@ -122,10 +122,15 @@ def page_report() -> None:
             col.markdown(f"<div style='font-size:13px;color:#586a72'>{label}</div>"
                          f"<div style='font-size:28px;font-weight:700;color:{colour}'>{value}</div>"
                          f"<div style='font-size:12px;color:#586a72'>{note}</div>", unsafe_allow_html=True)
-        if r["coverage"]["low"]:
-            st.warning(f"Partial genotype file: {r['coverage']['prs_variants']:.0%} of PRS variants and "
-                       f"{r['coverage']['mechanism_snps']:.0%} of mechanism SNPs were found. Missing ones are filled "
-                       "with the South Asian average, so scores are pulled toward the middle.")
+        cov = r["coverage"]
+        if cov["low"]:
+            st.warning(f"Partial genotype file: {cov['prs_variants']:.0%} of PRS variants were measured and "
+                       f"{cov['prs_effective']:.0%} are measured or reliably imputed. Scores may be pulled toward "
+                       "the middle.")
+        elif cov["imputation"] == "ld" and cov["prs_variants"] < 0.95:
+            st.info(f"{cov['prs_variants']:.0%} of PRS variants were measured; missing ones were imputed from "
+                    f"correlated measured variants (LD imputation), giving {cov['prs_effective']:.0%} effective "
+                    "coverage.")
         if r["missed_by_bmi_screening"]:
             st.error("High risk at a normal BMI: this is the lean blind spot that BMI-based screening misses.")
         if r["missed_by_idrs"]:
@@ -155,19 +160,23 @@ def page_report() -> None:
         if r["what_if"]:
             st.dataframe(pd.DataFrame([{"Change": w["change"], "Risk after": risk_text(w["risk_probability"]),
                                         "Relative change": f"{100 * w['relative_change']:+.0f}%"}
-                                       for w in r["what_if"]]), hide_index=True, use_container_width=True)
+                                       for w in r["what_if"]]), hide_index=True, width="stretch")
         st.caption("Risk is the model's calibrated probability in the simulated South Asian population. "
                    "Waist changes also move BMI by 0.4 kg/m² per cm.")
 
         if r["top_pairs"]:
             st.subheader("Interacting SNP pairs this person carries")
-            st.dataframe(pd.DataFrame(r["top_pairs"]), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(r["top_pairs"]), hide_index=True, width="stretch")
         st.subheader("What helps")
         for a in r["advice"]:
             st.markdown(f"- {a}")
-        st.caption(f"Coverage: {r['coverage']['prs_variants']:.0%} of PRS variants, "
-                   f"{r['coverage']['mechanism_snps']:.0%} of mechanism SNPs, {r['coverage']['n_calls']:,} calls. "
-                   f"Model {r['model_version']}.")
+        st.caption(f"Coverage: {cov['prs_variants']:.0%} of PRS variants measured "
+                   f"({cov['prs_effective']:.0%} with imputation), {cov['mechanism_snps']:.0%} of mechanism SNPs, "
+                   f"{cov['n_calls']:,} calls. Model {r['model_version']}.")
+        from qgenomix.app.pdf import render_report
+
+        st.download_button("Download PDF report", data=render_report(r, form), file_name="qgenomix_report.pdf",
+                           mime="application/pdf", type="primary")
         if (FIG / "fig_circuit.png").exists():
             with st.expander("The quantum circuit that encoded this person's gene pairs"):
                 st.image(str(FIG / "fig_circuit.png"))
@@ -189,12 +198,16 @@ def page_clinician() -> None:
     elif view.startswith("High risk, missed by IDRS"):
         df = df[(df["risk_tier"] == "high") & (df["idrs_category"] != "high")]
     st.metric("People shown", len(df))
-    st.dataframe(df, hide_index=True, use_container_width=True)
+    st.dataframe(df, hide_index=True, width="stretch")
 
 
 def page_research() -> None:
     st.title("Research results")
-    figs = sorted(FIG.glob("fig_e*.png"))
+    def order(f):  # fig_e1_..., fig_e7b_..., fig_e10_... in experiment order
+        num = f.stem.split("_")[1][1:]
+        return int("".join(ch for ch in num if ch.isdigit())), num
+
+    figs = sorted(FIG.glob("fig_e*.png"), key=order)
     if not figs:
         st.info("Run the experiments and `python scripts/make_figures.py` first.")
     for f in figs:

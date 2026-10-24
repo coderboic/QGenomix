@@ -1,0 +1,7 @@
+{
+  "name": "qgenomix-report",
+  "private": true,
+  "description": "Builds the QGenomix mentor evaluation report (.docx) from results/*.json and figures/",
+  "scripts": { "build": "node build_mentor_report.js ../../QGenomix_Mentor_Evaluation_Report.docx" },
+  "dependencies": { "docx": "9.13.0" }
+}

@@ -1,0 +1,414 @@
+{
+  "rows": [
+    {
+      "setting": "default",
+      "seed": 0,
+      "auc_idrs": 0.7726289581205312,
+      "lean_capture_idrs": 0.34615384615384615,
+      "auc_clinical": 0.8260240040858019,
+      "lean_capture_clinical": 0.36538461538461536,
+      "auc_genetic": 0.8869101123595505,
+      "lean_capture_genetic": 0.4807692307692308,
+      "edr10_score_test": 0.8
+    },
+    {
+      "setting": "default",
+      "seed": 1,
+      "auc_idrs": 0.7510955056179776,
+      "lean_capture_idrs": 0.23809523809523808,
+      "auc_clinical": 0.8197548518896833,
+      "lean_capture_clinical": 0.2857142857142857,
+      "auc_genetic": 0.8836338100102145,
+      "lean_capture_genetic": 0.5,
+      "edr10_score_test": 0.7
+    },
+    {
+      "setting": "no mechanism interaction (\u03b3 = 0)",
+      "seed": 0,
+      "auc_idrs": 0.7786453013278857,
+      "lean_capture_idrs": 0.34782608695652173,
+      "auc_clinical": 0.8261312563840654,
+      "lean_capture_clinical": 0.45652173913043476,
+      "auc_genetic": 0.8728447395301329,
+      "lean_capture_genetic": 0.6304347826086957,
+      "edr10_score_test": 0.7
+    },
+    {
+      "setting": "no mechanism interaction (\u03b3 = 0)",
+      "seed": 1,
+      "auc_idrs": 0.7336746680286006,
+      "lean_capture_idrs": 0.3125,
+      "auc_clinical": 0.8089606741573033,
+      "lean_capture_clinical": 0.2708333333333333,
+      "auc_genetic": 0.8508197139938712,
+      "lean_capture_genetic": 0.4166666666666667,
+      "edr10_score_test": 0.5
+    },
+    {
+      "setting": "double mechanism interaction (\u03b3 = 0.28)",
+      "seed": 0,
+      "auc_idrs": 0.7744126659856997,
+      "lean_capture_idrs": 0.30952380952380953,
+      "auc_clinical": 0.8266521961184883,
+      "lean_capture_clinical": 0.35714285714285715,
+      "auc_genetic": 0.8830107252298264,
+      "lean_capture_genetic": 0.5952380952380952,
+      "edr10_score_test": 0.8
+    },
+    {
+      "setting": "double mechanism interaction (\u03b3 = 0.28)",
+      "seed": 1,
+      "auc_idrs": 0.7231575587334014,
+      "lean_capture_idrs": 0.2857142857142857,
+      "auc_clinical": 0.7869101123595504,
+      "lean_capture_clinical": 0.32142857142857145,
+      "auc_genetic": 0.8411006128702758,
+      "lean_capture_genetic": 0.5357142857142857,
+      "edr10_score_test": 0.5
+    },
+    {
+      "setting": "weaker gene pairs (\u03b4 = 0.1)",
+      "seed": 0,
+      "auc_idrs": 0.7499016853932585,
+      "lean_capture_idrs": 0.2978723404255319,
+      "auc_clinical": 0.801161899897855,
+      "lean_capture_clinical": 0.3404255319148936,
+      "auc_genetic": 0.8523518896833503,
+      "lean_capture_genetic": 0.44680851063829785,
+      "edr10_score_test": 0.4
+    },
+    {
+      "setting": "weaker gene pairs (\u03b4 = 0.1)",
+      "seed": 1,
+      "auc_idrs": 0.7221488764044943,
+      "lean_capture_idrs": 0.3,
+      "auc_clinical": 0.7847548518896834,
+      "lean_capture_clinical": 0.32,
+      "auc_genetic": 0.8512691521961184,
+      "lean_capture_genetic": 0.44,
+      "edr10_score_test": 0.1
+    },
+    {
+      "setting": "stronger gene pairs (\u03b4 = 0.3)",
+      "seed": 0,
+      "auc_idrs": 0.7466304902962206,
+      "lean_capture_idrs": 0.32,
+      "auc_clinical": 0.7902885597548519,
+      "lean_capture_clinical": 0.28,
+      "auc_genetic": 0.8730464759959142,
+      "lean_capture_genetic": 0.48,
+      "edr10_score_test": 1.0
+    },
+    {
+      "setting": "stronger gene pairs (\u03b4 = 0.3)",
+      "seed": 1,
+      "auc_idrs": 0.7379570990806946,
+      "lean_capture_idrs": 0.35714285714285715,
+      "auc_clinical": 0.7947803881511747,
+      "lean_capture_clinical": 0.32142857142857145,
+      "auc_genetic": 0.8569254341164454,
+      "lean_capture_genetic": 0.5357142857142857,
+      "edr10_score_test": 0.9
+    },
+    {
+      "setting": "half background PRS",
+      "seed": 0,
+      "auc_idrs": 0.7698697650663944,
+      "lean_capture_idrs": 0.40384615384615385,
+      "auc_clinical": 0.8077400408580184,
+      "lean_capture_clinical": 0.3269230769230769,
+      "auc_genetic": 0.8450255362614914,
+      "lean_capture_genetic": 0.40384615384615385,
+      "edr10_score_test": 0.7
+    },
+    {
+      "setting": "half background PRS",
+      "seed": 1,
+      "auc_idrs": 0.7400331971399385,
+      "lean_capture_idrs": 0.3157894736842105,
+      "auc_clinical": 0.7895275791624107,
+      "lean_capture_clinical": 0.2807017543859649,
+      "auc_genetic": 0.8392747701736465,
+      "lean_capture_genetic": 0.42105263157894735,
+      "edr10_score_test": 0.5
+    },
+    {
+      "setting": "1.5\u00d7 background PRS",
+      "seed": 0,
+      "auc_idrs": 0.7524514811031664,
+      "lean_capture_idrs": 0.35714285714285715,
+      "auc_clinical": 0.8059141981613891,
+      "lean_capture_clinical": 0.35714285714285715,
+      "auc_genetic": 0.8739683350357506,
+      "lean_capture_genetic": 0.5714285714285714,
+      "edr10_score_test": 0.9
+    },
+    {
+      "setting": "1.5\u00d7 background PRS",
+      "seed": 1,
+      "auc_idrs": 0.7927464249233912,
+      "lean_capture_idrs": 0.40816326530612246,
+      "auc_clinical": 0.8505771195097036,
+      "lean_capture_clinical": 0.46938775510204084,
+      "auc_genetic": 0.9011899897854955,
+      "lean_capture_genetic": 0.6326530612244898,
+      "edr10_score_test": 0.6
+    },
+    {
+      "setting": "half mechanism scores",
+      "seed": 0,
+      "auc_idrs": 0.7250574565883554,
+      "lean_capture_idrs": 0.28,
+      "auc_clinical": 0.786532175689479,
+      "lean_capture_clinical": 0.36,
+      "auc_genetic": 0.8266419816138917,
+      "lean_capture_genetic": 0.4,
+      "edr10_score_test": 0.7
+    },
+    {
+      "setting": "half mechanism scores",
+      "seed": 1,
+      "auc_idrs": 0.7242671092951992,
+      "lean_capture_idrs": 0.2542372881355932,
+      "auc_clinical": 0.7903115423901941,
+      "lean_capture_clinical": 0.23728813559322035,
+      "auc_genetic": 0.8274897854954035,
+      "lean_capture_genetic": 0.4576271186440678,
+      "edr10_score_test": 0.6
+    },
+    {
+      "setting": "1.5\u00d7 mechanism scores",
+      "seed": 0,
+      "auc_idrs": 0.7545748212461695,
+      "lean_capture_idrs": 0.38333333333333336,
+      "auc_clinical": 0.7867926455566904,
+      "lean_capture_clinical": 0.36666666666666664,
+      "auc_genetic": 0.8666164453524005,
+      "lean_capture_genetic": 0.5666666666666667,
+      "edr10_score_test": 0.8
+    },
+    {
+      "setting": "1.5\u00d7 mechanism scores",
+      "seed": 1,
+      "auc_idrs": 0.773635086823289,
+      "lean_capture_idrs": 0.29411764705882354,
+      "auc_clinical": 0.8289274770173647,
+      "lean_capture_clinical": 0.35294117647058826,
+      "auc_genetic": 0.8831511746680286,
+      "lean_capture_genetic": 0.5294117647058824,
+      "edr10_score_test": 0.5
+    },
+    {
+      "setting": "prevalence 8%",
+      "seed": 0,
+      "auc_idrs": 0.7875713315217391,
+      "lean_capture_idrs": 0.3103448275862069,
+      "auc_clinical": 0.8275271739130434,
+      "lean_capture_clinical": 0.27586206896551724,
+      "auc_genetic": 0.8748131793478261,
+      "lean_capture_genetic": 0.5517241379310345,
+      "edr10_score_test": 0.7
+    },
+    {
+      "setting": "prevalence 8%",
+      "seed": 1,
+      "auc_idrs": 0.7978549592391305,
+      "lean_capture_idrs": 0.3333333333333333,
+      "auc_clinical": 0.8323335597826088,
+      "lean_capture_clinical": 0.4444444444444444,
+      "auc_genetic": 0.884171195652174,
+      "lean_capture_genetic": 0.6296296296296297,
+      "edr10_score_test": 0.6
+    },
+    {
+      "setting": "prevalence 15%",
+      "seed": 0,
+      "auc_idrs": 0.7338284313725492,
+      "lean_capture_idrs": 0.273972602739726,
+      "auc_clinical": 0.7794196078431372,
+      "lean_capture_clinical": 0.2602739726027397,
+      "auc_genetic": 0.8460647058823529,
+      "lean_capture_genetic": 0.4246575342465753,
+      "edr10_score_test": 0.9
+    },
+    {
+      "setting": "prevalence 15%",
+      "seed": 1,
+      "auc_idrs": 0.7226666666666666,
+      "lean_capture_idrs": 0.24705882352941178,
+      "auc_clinical": 0.76895,
+      "lean_capture_clinical": 0.23529411764705882,
+      "auc_genetic": 0.8399019607843137,
+      "lean_capture_genetic": 0.38823529411764707,
+      "edr10_score_test": 0.8
+    },
+    {
+      "setting": "half age effect",
+      "seed": 0,
+      "auc_idrs": 0.753111593462717,
+      "lean_capture_idrs": 0.32075471698113206,
+      "auc_clinical": 0.7945429009193054,
+      "lean_capture_clinical": 0.2830188679245283,
+      "auc_genetic": 0.8494943820224719,
+      "lean_capture_genetic": 0.4528301886792453,
+      "edr10_score_test": 0.8
+    },
+    {
+      "setting": "half age effect",
+      "seed": 1,
+      "auc_idrs": 0.7247178243105209,
+      "lean_capture_idrs": 0.2641509433962264,
+      "auc_clinical": 0.7908912155260469,
+      "lean_capture_clinical": 0.33962264150943394,
+      "auc_genetic": 0.8432865168539325,
+      "lean_capture_genetic": 0.5094339622641509,
+      "edr10_score_test": 0.5
+    },
+    {
+      "setting": "double age effect",
+      "seed": 0,
+      "auc_idrs": 0.7807801327885597,
+      "lean_capture_idrs": 0.33962264150943394,
+      "auc_clinical": 0.8330975485188968,
+      "lean_capture_clinical": 0.39622641509433965,
+      "auc_genetic": 0.8864019407558733,
+      "lean_capture_genetic": 0.5471698113207547,
+      "edr10_score_test": 0.8
+    },
+    {
+      "setting": "double age effect",
+      "seed": 1,
+      "auc_idrs": 0.7710878447395302,
+      "lean_capture_idrs": 0.4230769230769231,
+      "auc_clinical": 0.8343156281920326,
+      "lean_capture_clinical": 0.4423076923076923,
+      "auc_genetic": 0.8895812053115424,
+      "lean_capture_genetic": 0.5961538461538461,
+      "edr10_score_test": 0.6
+    }
+  ],
+  "summary": {
+    "default": {
+      "auc_idrs": 0.7618622318692544,
+      "lean_capture_idrs": 0.2921245421245421,
+      "auc_clinical": 0.8228894279877426,
+      "lean_capture_clinical": 0.3255494505494505,
+      "auc_genetic": 0.8852719611848825,
+      "lean_capture_genetic": 0.4903846153846154,
+      "edr10_score_test": 0.75
+    },
+    "no mechanism interaction (\u03b3 = 0)": {
+      "auc_idrs": 0.7561599846782432,
+      "lean_capture_idrs": 0.33016304347826086,
+      "auc_clinical": 0.8175459652706843,
+      "lean_capture_clinical": 0.36367753623188404,
+      "auc_genetic": 0.861832226762002,
+      "lean_capture_genetic": 0.5235507246376812,
+      "edr10_score_test": 0.6
+    },
+    "double mechanism interaction (\u03b3 = 0.28)": {
+      "auc_idrs": 0.7487851123595506,
+      "lean_capture_idrs": 0.2976190476190476,
+      "auc_clinical": 0.8067811542390193,
+      "lean_capture_clinical": 0.3392857142857143,
+      "auc_genetic": 0.8620556690500512,
+      "lean_capture_genetic": 0.5654761904761905,
+      "edr10_score_test": 0.65
+    },
+    "weaker gene pairs (\u03b4 = 0.1)": {
+      "auc_idrs": 0.7360252808988764,
+      "lean_capture_idrs": 0.298936170212766,
+      "auc_clinical": 0.7929583758937693,
+      "lean_capture_clinical": 0.3302127659574468,
+      "auc_genetic": 0.8518105209397344,
+      "lean_capture_genetic": 0.44340425531914895,
+      "edr10_score_test": 0.25
+    },
+    "stronger gene pairs (\u03b4 = 0.3)": {
+      "auc_idrs": 0.7422937946884576,
+      "lean_capture_idrs": 0.3385714285714286,
+      "auc_clinical": 0.7925344739530134,
+      "lean_capture_clinical": 0.3007142857142857,
+      "auc_genetic": 0.8649859550561798,
+      "lean_capture_genetic": 0.5078571428571428,
+      "edr10_score_test": 0.95
+    },
+    "half background PRS": {
+      "auc_idrs": 0.7549514811031665,
+      "lean_capture_idrs": 0.3598178137651822,
+      "auc_clinical": 0.7986338100102146,
+      "lean_capture_clinical": 0.3038124156545209,
+      "auc_genetic": 0.8421501532175689,
+      "lean_capture_genetic": 0.4124493927125506,
+      "edr10_score_test": 0.6
+    },
+    "1.5\u00d7 background PRS": {
+      "auc_idrs": 0.7725989530132789,
+      "lean_capture_idrs": 0.38265306122448983,
+      "auc_clinical": 0.8282456588355464,
+      "lean_capture_clinical": 0.413265306122449,
+      "auc_genetic": 0.8875791624106231,
+      "lean_capture_genetic": 0.6020408163265306,
+      "edr10_score_test": 0.75
+    },
+    "half mechanism scores": {
+      "auc_idrs": 0.7246622829417773,
+      "lean_capture_idrs": 0.2671186440677966,
+      "auc_clinical": 0.7884218590398365,
+      "lean_capture_clinical": 0.2986440677966102,
+      "auc_genetic": 0.8270658835546476,
+      "lean_capture_genetic": 0.4288135593220339,
+      "edr10_score_test": 0.6499999999999999
+    },
+    "1.5\u00d7 mechanism scores": {
+      "auc_idrs": 0.7641049540347292,
+      "lean_capture_idrs": 0.33872549019607845,
+      "auc_clinical": 0.8078600612870275,
+      "lean_capture_clinical": 0.35980392156862745,
+      "auc_genetic": 0.8748838100102145,
+      "lean_capture_genetic": 0.5480392156862746,
+      "edr10_score_test": 0.65
+    },
+    "prevalence 8%": {
+      "auc_idrs": 0.7927131453804348,
+      "lean_capture_idrs": 0.3218390804597701,
+      "auc_clinical": 0.8299303668478262,
+      "lean_capture_clinical": 0.36015325670498083,
+      "auc_genetic": 0.8794921875,
+      "lean_capture_genetic": 0.590676883780332,
+      "edr10_score_test": 0.6499999999999999
+    },
+    "prevalence 15%": {
+      "auc_idrs": 0.7282475490196079,
+      "lean_capture_idrs": 0.2605157131345689,
+      "auc_clinical": 0.7741848039215686,
+      "lean_capture_clinical": 0.24778404512489927,
+      "auc_genetic": 0.8429833333333333,
+      "lean_capture_genetic": 0.4064464141821112,
+      "edr10_score_test": 0.8500000000000001
+    },
+    "half age effect": {
+      "auc_idrs": 0.738914708886619,
+      "lean_capture_idrs": 0.29245283018867924,
+      "auc_clinical": 0.7927170582226761,
+      "lean_capture_clinical": 0.3113207547169811,
+      "auc_genetic": 0.8463904494382022,
+      "lean_capture_genetic": 0.4811320754716981,
+      "edr10_score_test": 0.65
+    },
+    "double age effect": {
+      "auc_idrs": 0.775933988764045,
+      "lean_capture_idrs": 0.3813497822931785,
+      "auc_clinical": 0.8337065883554647,
+      "lean_capture_clinical": 0.41926705370101597,
+      "auc_genetic": 0.8879915730337078,
+      "lean_capture_genetic": 0.5716618287373004,
+      "edr10_score_test": 0.7
+    }
+  },
+  "n": 10000,
+  "seeds": [
+    0,
+    1
+  ]
+}
