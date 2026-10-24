@@ -495,14 +495,16 @@ def fig_e7b(tables):
             for si, ((k, label), col) in enumerate(zip(stages, shades, strict=True)):
                 x = di + (si - 1.5) * 0.19
                 ax.bar(x, vals[k], width=0.17, color=col, label=label if di == 0 else None)
-            ax.plot([di - 0.4, di + 0.4], [ideal, ideal], color=INK, lw=2, label="noise-free" if di == 0 else None)
+            ax.plot([di - 0.4, di + 0.4], [ideal, ideal], color=INK, lw=2,
+                    label="noise-free, same post-selection" if di == 0 else None)
             ax.plot([di - 0.4, di + 0.4], [rand, rand], color=GREY, lw=1.4, ls="--",
                     label="random valid choice" if di == 0 else None)
-            ax.text(di + 0.38, vals["readout_postselect_zne"] + 0.015, f"{vals['readout_postselect_zne']:.2f}",
-                    ha="center", fontsize=8.5, color=INK)
+            ax.text(di + (1.5 * 0.19), max(vals["readout_postselect_zne"], ideal) + 0.025,
+                    f"{vals['readout_postselect_zne']:.2f}", ha="center", fontsize=9, color=INK, fontweight="bold")
         ax.set(title=title, xticks=range(len(depths)), xticklabels=[f"QAOA depth {d}" for d in depths], ylim=(0, 1))
     axes[0].set_ylabel("approximation ratio (1 = best selection)")
-    axes[1].legend(fontsize=8, loc="upper left", ncol=2)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=3)
     fig.suptitle("E7b · Error mitigation on the IBM Kingston noise model (mean of 3 sub-problems)",
                  fontweight="bold", y=1.02)
     save(fig, "fig_e7b_mitigation.png")

@@ -1944,6 +1944,48 @@
     ],
     "hardware": null
   },
+  "e7b": {
+    "penalty_p1": {
+      "raw": 0.23348980226556162,
+      "readout": 0.22898137806157084,
+      "readout_postselect": 0.6840759055431421,
+      "readout_postselect_zne": 0.6863150078662779,
+      "ideal_postselect": 0.6800027767778127,
+      "random_valid": 0.6757451513283517,
+      "n_problems": 3,
+      "n_2q": 230.33333333333334
+    },
+    "penalty_p2": {
+      "raw": 0.28215836431211383,
+      "readout": 0.28637993844953064,
+      "readout_postselect": 0.688194222852163,
+      "readout_postselect_zne": 0.6896596791350217,
+      "ideal_postselect": 0.6852579067484875,
+      "random_valid": 0.6757451513283517,
+      "n_problems": 3,
+      "n_2q": 540.6666666666666
+    },
+    "xy_p1": {
+      "raw": 0.31432898766006684,
+      "readout": 0.32856322536182647,
+      "readout_postselect": 0.7378442273958695,
+      "readout_postselect_zne": 0.7497496815330438,
+      "ideal_postselect": 0.7558143837685501,
+      "random_valid": 0.6757451513283517,
+      "n_problems": 3,
+      "n_2q": 584.3333333333334
+    },
+    "xy_p2": {
+      "raw": 0.2664291890673036,
+      "readout": 0.2719888495217766,
+      "readout_postselect": 0.7423876841105598,
+      "readout_postselect_zne": 0.7501910436483256,
+      "ideal_postselect": 0.7797040826199297,
+      "random_valid": 0.6757451513283517,
+      "n_problems": 3,
+      "n_2q": 723.3333333333334
+    }
+  },
   "e9": {
     "SAS": {
       "M2_prs": [

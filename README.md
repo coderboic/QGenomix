@@ -77,6 +77,7 @@ in this repository. `make rehearse-ibm` runs the whole script locally on the IBM
 | E5 entanglement | Entangled VQC 0.866, no entanglement 0.871, classical twin 0.870 (own heads) |
 | E6 pair selection | QUBO covers 62 SNPs (top-K 49), cuts shadow pairs by a quarter, best objective in 61% of runs |
 | E7 QAOA | Constraint-preserving XY mixer 0.76→0.83 (depth 1→6) vs penalty form 0.30→0.66, ideal; IBM Kingston noise model ~0.3 for both |
+| E7b error mitigation | On the IBM Kingston noise model, readout correction + post-selection + zero-noise extrapolation lift the XY QAOA from 0.31 to 0.75 (noise-free 0.76, random valid choice 0.68); the penalty form only reaches 0.69 |
 | E8 lean blind spot | Lean cases caught in the top 20%: BMI rule 0%, IDRS 30%, clinical model 35%, with genes 58% |
 | E9 real genomes | Clinical + genes AUC 0.881 on real South Asians, 0.792 on Africans |
 | E10 lifestyle what-ifs | App vs truth: waist −5 cm −28% vs −28%; exercise −32% vs −40%; both −52% vs −59% |

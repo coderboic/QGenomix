@@ -463,7 +463,9 @@ const ch5 = [
     `XY circuit at depth 1 the approximation ratio rises from ${f2(sx("xy_p1").raw)} to ` +
     `${f2(sx("xy_p1").readout_postselect_zne)}, against ${f2(sx("xy_p1").ideal_postselect)} noise-free and ` +
     `${f2(sx("xy_p1").random_valid)} for a random valid choice. Post-selection does most of the work, which is ` +
-    `exactly what the conserved pair count makes possible. An 8-qubit encoder can be simulated exactly, so no ` +
+    `exactly what the conserved pair count makes possible. The penalty form only reaches the level of a random ` +
+    `valid choice (${f2(sx("penalty_p1").readout_postselect_zne)}), because even noise-free it has no edge once ` +
+    `invalid samples are discarded. An 8-qubit encoder can be simulated exactly, so no ` +
     `speed-up is claimed; the contribution is a controlled test of where quantum methods stand on this problem.`),
   ...figure("fig_e7b_mitigation.png", 600, "E7b: QAOA quality on the IBM Kingston noise model after each mitigation stage"),
   H2("5.8 Real Genomes and Lifestyle What-ifs"),
