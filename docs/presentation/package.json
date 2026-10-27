@@ -1,0 +1,13 @@
+{
+  "name": "qgenomix-presentation",
+  "private": true,
+  "description": "Builds the QGenomix mentor evaluation slides (.pptx) from results/*.json and figures/",
+  "scripts": { "build": "node build_deck.js ../../QGenomix_Mentor_Presentation.pptx" },
+  "dependencies": {
+    "pptxgenjs": "3.12.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-icons": "5.4.0",
+    "sharp": "0.33.5"
+  }
+}

@@ -18,3 +18,4 @@ logs/
 results/**/*.npz
 results/**/*.npy
 docs/report/node_modules/
+docs/presentation/node_modules/

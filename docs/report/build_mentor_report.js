@@ -1,5 +1,5 @@
 // QGenomix mentor evaluation report in the Thapar capstone format: cover, abstract, declaration,
-// acknowledgement, contents, lists, chapters 1-6, appendices and the mentor's remarks page.
+// acknowledgement, contents, lists, chapters 1-6, references and the mentor's remarks page.
 //
 //   cd docs/report && npm install && npm run build
 //
@@ -999,8 +999,6 @@ function appendices() {
       spacing: { after: 80, line: 260 }, indent: { left: 560, hanging: 560 }, tabStops: [{ type: TabStopType.LEFT, position: 560 }],
       children: [new TextRun({ text: `[${i + 1}]\t`, size: 22 }), ...runs(REFS[k], { size: 22 })],
     })),
-    H1("APPENDIX B: PLAGIARISM REPORT"),
-    P("Plagiarism report to be attached here after Turnitin submission."),
   ];
 }
 function remarksPage() {

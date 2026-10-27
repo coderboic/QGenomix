@@ -95,7 +95,8 @@ configs/      main.yaml: every parameter; results record its hash
 src/qgenomix/ the package (data, sim, search, quantum, models, eval, pipeline, app)
 scripts/      prepare_data, run_experiments, make_figures, build_bundle, build_impute_panel, make_personas, run_ibm
 tests/        unit, equivalence, smoke and app tests
-docs/         model_card.md, HANDOVER.md, resume_highlights.md; report/ builds the mentor report (.docx)
+docs/         model_card.md, HANDOVER.md, resume_highlights.md; report/ and presentation/ build the
+              mentor report (.docx) and slides (.pptx)
 Dockerfile    app image (dashboard + API); docker-compose.yml runs both
 results/      experiment outputs (JSON)
 figures/      report figures

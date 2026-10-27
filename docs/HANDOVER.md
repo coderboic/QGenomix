@@ -16,6 +16,8 @@ Two features are deliberately kept for the final panel (around 9 November) becau
 - **IBM rehearsal mode**: `make rehearse-ibm` runs the hardware script locally on the Kingston noise model.
 - Mentor report regenerated from the results: `QGenomix_Mentor_Evaluation_Report.docx`
   (rebuild: `cd docs/report && npm install && npm run build`).
+- Mentor presentation: `QGenomix_Mentor_Presentation.pptx`, 17 slides with speaker notes and native charts
+  (rebuild: `cd docs/presentation && npm install && npm run build`).
 
 ## Kept for the final panel (each about one day)
 1. **Real IBM quantum hardware run.** Create a free IBM Quantum account (Open Plan, 10 QPU minutes per 28 days),
@@ -28,7 +30,7 @@ Two features are deliberately kept for the final panel (around 9 November) becau
    it on a machine that has them.
 
 ## Also before the panel
-- Sign the declaration in the report and attach the Turnitin report as Appendix B.
+- Sign the declaration in the report.
 - Slides, a three-minute demo video, and who presents which part.
 
 ## Demo checklist (panel day)
