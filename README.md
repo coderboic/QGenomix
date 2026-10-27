@@ -1,7 +1,6 @@
 # QGenomix
 
-**Quantum-assisted search for cross-mechanism gene interactions in early-onset type 2 diabetes among lean
-South Asians.** Capstone project CPG 218, Computer Science and Engineering Department, Thapar Institute.
+**Quantum-assisted genetic screening for early-onset type 2 diabetes in lean South Asians.**
 
 Many South Asians develop type 2 diabetes young and at a normal BMI, so BMI-based screening misses them.
 QGenomix asks two questions: do genetic variants from two diabetes mechanisms, insulin production (β-cell)
@@ -13,6 +12,37 @@ AncestryDNA) are completed by LD imputation, the report downloads as a PDF, and 
 
 > Research prototype. Genotypes are real (1000 Genomes); disease outcomes are **simulated**. Not a medical
 > device and not for diagnosis.
+
+![QGenomix architecture](figures/fig_architecture.png)
+
+**Headline results** (simulated outcomes on real genotypes): adding genetics to the clinical factors raises AUC
+from 0.812 to 0.874; among lean people who develop diabetes, screening the top 20% by risk catches 58% with
+genetics against 30% with the IDRS and 0% with a BMI rule; the interaction search finds 70-84% of planted gene
+pairs (PLINK BOOST 40-48%); the quantum components show no advantage over their classical controls, and error
+mitigation recovers most of the quality lost to hardware noise.
+
+## Team
+
+| Name | Roll No. |
+| --- | --- |
+| Aritro Chowdhury | 102303452 |
+| Suyash Gupta | 102303017 |
+| Rishabh Sharma | 102303286 |
+| Akshat Ahuja | 102315073 |
+| Anshh Pasriccha | 102303455 |
+
+Guided by **Dr. Husanbir Singh Pannu**, Assistant Professor, Computer Science and Engineering Department,
+Thapar Institute of Engineering and Technology, Patiala.
+
+## Documents
+
+| File | What it is |
+| --- | --- |
+| [`QGenomix_Mentor_Evaluation_Report.docx`](QGenomix_Mentor_Evaluation_Report.docx) | Project report: requirements, method, design, all experiments and results |
+| [`QGenomix_Presentation.pptx`](QGenomix_Presentation.pptx) | 16-slide presentation with speaker notes |
+| [`docs/model_card.md`](docs/model_card.md) | Intended use, data, performance, fairness and limits of the deployed model |
+| [`docs/HANDOVER.md`](docs/HANDOVER.md) | How to run the demo and what remains |
+| [`docs/resume_highlights.md`](docs/resume_highlights.md) | Project summary lines for CVs |
 
 ## What is in the box
 
@@ -88,6 +118,14 @@ in this repository. `make rehearse-ibm` runs the whole script locally on the IBM
 Every number comes from `results/*.json`; `results/tables.json` is the summary and `figures/` holds the plots.
 Results from before the clinical factors were added are kept in `results/v1_pre_clinical/`.
 
+## The application
+
+The dashboard reads a 23andMe or AncestryDNA file, fills in missing variants, and reports the risk tier and
+percentile, the IDRS, the screening flags the BMI rule and the IDRS would miss, the mechanism profile with the
+gene pairs that drive it, and live lifestyle what-ifs. The same report downloads as a one-page PDF:
+
+<img src="figures/app_pdf_report.png" alt="One-page PDF risk report for a synthetic demo persona" width="520">
+
 ## Repository layout
 
 ```
@@ -95,8 +133,8 @@ configs/      main.yaml: every parameter; results record its hash
 src/qgenomix/ the package (data, sim, search, quantum, models, eval, pipeline, app)
 scripts/      prepare_data, run_experiments, make_figures, build_bundle, build_impute_panel, make_personas, run_ibm
 tests/        unit, equivalence, smoke and app tests
-docs/         model_card.md, HANDOVER.md, resume_highlights.md; report/ and presentation/ build the
-              mentor report (.docx) and slides (.pptx)
+docs/         model_card.md, HANDOVER.md, resume_highlights.md; report/ and presentation/ rebuild the
+              report (.docx) and the slides (.pptx) from results/
 Dockerfile    app image (dashboard + API); docker-compose.yml runs both
 results/      experiment outputs (JSON)
 figures/      report figures
