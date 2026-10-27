@@ -1,6 +1,5 @@
 .git
 .venv
-.claude
 .github
 **/__pycache__
 .pytest_cache

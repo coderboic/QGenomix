@@ -19,17 +19,17 @@ Two features are deliberately kept for the final panel (around 9 November) becau
 
 ## Kept for the final panel (each about one day)
 1. **Real IBM quantum hardware run.** Create a free IBM Quantum account (Open Plan, 10 QPU minutes per 28 days),
-   save the API key on your own laptop with the command in `scripts/run_ibm.py` (never in chat or git), then:
-   `python scripts/run_ibm.py --backend ibm_kingston --depths 1 2` (one batched job, about 2 QPU minutes)
-   and `make figures`. Tell Claude when `results/e7_hardware.json` exists and it will add it to the figures and report.
+   save the API key on your own laptop with the command in `scripts/run_ibm.py` (never in chat or git), and run
+   `python scripts/run_ibm.py --backend ibm_kingston --depths 1 2` (one batched job, about 2 QPU minutes).
+   Afterwards `make figures` and `cd docs/report && npm run build` add the hardware result to the E7b figure and
+   to Section 5.6 of the report automatically.
 2. **Public online demo.** Deploy the Docker image to a free host (for example a Hugging Face Space, Docker SDK)
    under a team account. The image needs `bundle/` and `data/personas/`, which are not in git (too large), so build
    it on a machine that has them.
 
 ## Also before the panel
-- Final report in the Thapar Word template (cover, declaration, signatures, Turnitin report).
+- Sign the declaration in the report and attach the Turnitin report as Appendix B.
 - Slides, a three-minute demo video, and who presents which part.
-- Answer the open comment in the long report (Genes & Health vs GenomeIndia via IBDC).
 
 ## Demo checklist (panel day)
 - Needed on the laptop: `.venv/`, `bundle/` (including `impute_panel.npz`), `data/personas/`, `figures/`, `docs/`.

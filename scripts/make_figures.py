@@ -425,16 +425,19 @@ def fig_e9(tables):
         return
     pops = list(e9["auc"])
     models = ["M2_prs", "M3_additive", "M6_xgb", "M7_xgb_pairs"]
-    fig, ax = plt.subplots(figsize=(8.5, 3.8))
+    names = {"M2_prs": "PRS only", "M3_additive": "clinical + PRS + mechanisms", "M6_xgb": "XGBoost",
+             "M7_xgb_pairs": "XGBoost + gene pairs"}
+    fig, ax = plt.subplots(figsize=(8.5, 4.2))
     w = 0.2
     for i, (m, col) in enumerate(zip(models, (GREY, TEAL, AMBER, PURPLE), strict=True)):
         means = [np.nanmean(e9["auc"][p][m]) for p in pops]
         sds = [np.nanstd(e9["auc"][p][m]) for p in pops]
-        ax.bar(np.arange(len(pops)) + (i - 1.5) * w, means, w, yerr=sds, color=col, label=m,
+        ax.bar(np.arange(len(pops)) + (i - 1.5) * w, means, w, yerr=sds, color=col, label=names[m],
                error_kw={"ecolor": INK, "lw": 0.7})
     ax.set(xticks=range(len(pops)), xticklabels=[f"{p}\n(n = {e9['n_by_pop'][p]})" for p in pops],
-           ylabel="AUC", ylim=(0.5, 0.9), title="E9 · Models trained on synthetic South Asians, tested on real genomes")
-    ax.legend(fontsize=8, ncol=4)
+           ylabel="AUC (mean ± sd, 20 outcome draws)", ylim=(0.5, 0.95),
+           title="E9 · Models trained on synthetic South Asians, tested on real genomes")
+    ax.legend(fontsize=8.5, ncol=4, loc="upper center", bbox_to_anchor=(0.5, -0.17))
     save(fig, "fig_e9_real_genomes.png")
     tables["e9"] = {p: {m: (float(np.nanmean(e9["auc"][p][m])), float(np.nanstd(e9["auc"][p][m]))) for m in models}
                     | {"prevalence": float(np.mean(e9["prevalence"][p]))} for p in pops}
@@ -470,11 +473,13 @@ POP_NAME = {"GIH": "Gujarati", "PJL": "Punjabi", "BEB": "Bengali", "STU": "Sri L
             "male": "men", "female": "women", "all": "all South Asians"}
 
 
-def fig_e7b(tables):
+def fig_e7b(tables, hardware_file="e7_hardware.json"):
     e = load("e7b_mitigation.json")
     if not e:
         return
     runs = e["runs"]
+    hw = load(hardware_file)  # written by scripts/run_ibm.py on real IBM hardware (mitigated runs only)
+    hw_rows = hw["results"] if hw and hw.get("mitigated") else []
     stages = [("raw", "noisy, no mitigation"), ("readout", "+ readout correction"),
               ("readout_postselect", "+ post-selection"), ("readout_postselect_zne", "+ zero-noise extrapolation")]
     shades = ["#d9d4f2", "#b1a8e4", "#8579cf", PURPLE]
@@ -501,11 +506,24 @@ def fig_e7b(tables):
                     label="random valid choice" if di == 0 else None)
             ax.text(di + (1.5 * 0.19), max(vals["readout_postselect_zne"], ideal) + 0.025,
                     f"{vals['readout_postselect_zne']:.2f}", ha="center", fontsize=9, color=INK, fontweight="bold")
+            hr = [r for r in hw_rows if r["formulation"] == form and r["depth"] == d]
+            if hr:  # real hardware: raw and fully mitigated, on top of the matching simulated bars
+                h_raw = float(np.mean([r["raw"] for r in hr]))
+                h_mit = float(np.mean([r["readout_postselect_zne"] for r in hr]))
+                ax.plot([di - 1.5 * 0.19, di + 1.5 * 0.19], [h_raw, h_mit], "D", color=RED, ms=7, mec="white",
+                        label=f"IBM hardware ({hw['backend']})")
+                summary[f"{form}_p{d}"] |= {"hardware_raw": h_raw, "hardware_mitigated": h_mit,
+                                            "hardware_backend": hw["backend"], "hardware_problems": len(hr)}
         ax.set(title=title, xticks=range(len(depths)), xticklabels=[f"QAOA depth {d}" for d in depths], ylim=(0, 1))
     axes[0].set_ylabel("approximation ratio (1 = best selection)")
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=3)
-    fig.suptitle("E7b · Error mitigation on the IBM Kingston noise model (mean of 3 sub-problems)",
+    legend = {}
+    for ax in axes:
+        for h, label in zip(*ax.get_legend_handles_labels(), strict=True):
+            legend.setdefault(label, h)
+    fig.legend(list(legend.values()), list(legend), fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, 0.0),
+               ncol=3)
+    where = f" and on {hw['backend']}" if hw_rows else ""
+    fig.suptitle(f"E7b · Error mitigation on the IBM Kingston noise model{where} (mean of 3 sub-problems)",
                  fontweight="bold", y=1.02)
     save(fig, "fig_e7b_mitigation.png")
     tables["e7b"] = summary
@@ -679,6 +697,55 @@ def fig_architecture():
     save(fig, "fig_architecture.png")
 
 
+def fig_app_flow():
+    """How the app turns one consumer DNA file and six questionnaire answers into a report."""
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
+    app, quantum, inp, out = ("#eef3f6", "#5b7383"), ("#efe9f8", "#6a4c9c"), ("#ffffff", "#8a9aa4"), \
+        ("#e8f3f1", "#0a756f")
+    fig, ax = plt.subplots(figsize=(13, 5.6), dpi=200)
+    ax.set(xlim=(0, 13), ylim=(0, 5.6))
+    ax.axis("off")
+
+    def box(x, y, title, body, kind, w=2.85, h=1.55):
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.12", fc=kind[0],
+                                    ec=kind[1], lw=1.4))
+        ax.text(x + w / 2, y + h - 0.28, title, fontsize=10.5, fontweight="bold", color=INK, ha="center", va="top")
+        ax.text(x + w / 2, y + h - 0.7, body, fontsize=8.8, color="#4d5f69", ha="center", va="top", linespacing=1.35)
+
+    def arrow(p, q):
+        ax.add_patch(FancyArrowPatch(p, q, arrowstyle="-|>", mutation_scale=14, lw=1.3, color="#5b7383"))
+
+    xs, w, h, y1, y2 = [0.25, 3.45, 6.65, 9.85], 2.85, 1.55, 3.85, 0.95
+    row1 = [("Consumer DNA file", "23andMe or AncestryDNA,\nGRCh37, ~600k SNPs", inp),
+            ("Parse and check", "duplicates, alleles, strand,\ngenome build, coverage", app),
+            ("LD imputation", "missing variants from their\nbest-correlated measured\nneighbour (1.46M panel)", app),
+            ("Genetic scores", "D-PRISM PRS (5 parts),\n5 mechanism scores,\n62 SNP dosages", app)]
+    row2 = [("Quantum pair features", "12 circuits × 8 qubits\n→ 96 features for the\n48 selected SNP pairs", quantum),
+            ("Calibrated model", "XGBoost + Platt scaling\non genetic, quantum and\nclinical features", app),
+            ("Explain and simulate", "SHAP pair importance,\nmechanism percentiles,\nlifestyle what-ifs", app),
+            ("Report", "risk tier and percentile,\nIDRS, screening flags;\nscreen, JSON or PDF", out)]
+    for x, (t, b, k) in zip(xs, row1, strict=True):
+        box(x, y1, t, b, k)
+    for x, (t, b, k) in zip(reversed(xs), row2, strict=True):
+        box(x, y2, t, b, k)
+    for i in range(3):
+        arrow((xs[i] + w, y1 + h / 2), (xs[i + 1], y1 + h / 2))
+        arrow((xs[3 - i], y2 + h / 2), (xs[2 - i] + w, y2 + h / 2))
+    arrow((xs[3] + w / 2, y1), (xs[3] + w / 2, y2 + h))
+    qx, qy, qw, qh = xs[2] - 0.25, 2.9, w + 0.5, 0.6     # questionnaire feeds the model, between the rows
+    ax.add_patch(FancyBboxPatch((qx, qy), qw, qh, boxstyle="round,pad=0.02,rounding_size=0.1", fc=inp[0],
+                                ec=inp[1], lw=1.2, ls="--"))
+    ax.text(qx + qw / 2, qy + qh / 2, "Questionnaire: age, sex, BMI, waist,\nactivity, parents with diabetes",
+            fontsize=8.8, color=INK, ha="center", va="center", linespacing=1.3)
+    arrow((qx + qw / 2, qy), (qx + qw / 2, y2 + h))
+    ax.text(0.25, 0.35, "The slow part (reading and imputing the genome, about 10 s) runs once and is cached; "
+            "the model, explanation and what-ifs then re-run instantly when the answers change.",
+            fontsize=9.3, color="#4d5f69")
+    ax.grid(False)
+    save(fig, "fig_app_flow.png")
+
+
 def fig_circuit():
     from qgenomix.quantum.circuit import draw
 
@@ -694,5 +761,6 @@ if __name__ == "__main__":
     fig_lean_heatmap(cfg)
     fig_circuit()
     fig_architecture()
+    fig_app_flow()
     save_json(tables, RES / "tables.json")
     print("wrote results/tables.json")
