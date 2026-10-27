@@ -16,7 +16,7 @@ Two features are deliberately kept for the final panel (around 9 November) becau
 - **IBM rehearsal mode**: `make rehearse-ibm` runs the hardware script locally on the Kingston noise model.
 - Mentor report regenerated from the results: `QGenomix_Mentor_Evaluation_Report.docx`
   (rebuild: `cd docs/report && npm install && npm run build`).
-- Mentor presentation: `QGenomix_Mentor_Presentation.pptx`, 17 slides with speaker notes and native charts
+- Presentation: `QGenomix_Presentation.pptx`, 16 slides with speaker notes and native charts
   (rebuild: `cd docs/presentation && npm install && npm run build`).
 
 ## Kept for the final panel (each about one day)

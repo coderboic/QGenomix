@@ -1,4 +1,4 @@
-// QGenomix mentor evaluation slides (16:9 PowerPoint).
+// QGenomix project presentation (16:9 PowerPoint).
 //
 //   cd docs/presentation && npm install && npm run build
 //
@@ -13,7 +13,7 @@ const sharp = require("sharp");
 const Fa = require("react-icons/fa");
 
 const ROOT = path.resolve(__dirname, "../..");
-const OUT = path.resolve(process.argv[2] || path.join(ROOT, "QGenomix_Mentor_Presentation.pptx"));
+const OUT = path.resolve(process.argv[2] || path.join(ROOT, "QGenomix_Presentation.pptx"));
 const FIG = (f) => path.join(ROOT, "figures", f);
 
 // ---------------------------------------------------------------- project details
@@ -89,20 +89,20 @@ async function main() {
   pres.theme = { headFontFace: THEME.headFontFace, bodyFontFace: THEME.bodyFontFace };
   pres.author = TEAM.map(([n]) => n).join(", ");
   pres.company = "Thapar Institute of Engineering and Technology";
-  pres.title = "QGenomix: Mentor Evaluation";
-  pres.subject = "Capstone Project CPG 218, Computer Science and Engineering Department, TIET, Patiala";
+  pres.title = "QGenomix";
+  pres.subject = "Quantum-assisted genetic screening for early-onset type 2 diabetes in lean South Asians";
   const C = pres.SchemeColor;
 
   // ---------------------------------------------------------------- layouts
-  const footer = { text: { text: "QGenomix  ·  Capstone CPG 218  ·  Thapar Institute of Engineering and Technology",
+  const footer = { text: { text: "QGenomix  ·  Thapar Institute of Engineering and Technology, Patiala",
     options: { x: MX, y: 7.0, w: 9, h: 0.3, fontSize: 10, color: C.accent5, margin: 0 } } };
   pres.defineSlideMaster({
     title: "QGX Title",
     background: { color: HEX.dk2 },
     objects: [
-      { placeholder: { options: { name: "title", type: "title", x: 0.8, y: 1.95, w: 8.0, h: 1.2, fontSize: 60, bold: true,
+      { placeholder: { options: { name: "title", type: "title", x: 0.8, y: 0.85, w: 8.4, h: 1.25, fontSize: 64, bold: true,
         color: C.background1, align: "left", valign: "bottom", margin: 0 }, text: "" } },
-      { placeholder: { options: { name: "body", type: "body", x: 0.8, y: 3.25, w: 7.6, h: 1.0, fontSize: 20,
+      { placeholder: { options: { name: "body", type: "body", x: 0.8, y: 2.25, w: 8.0, h: 1.0, fontSize: 22,
         color: C.background2, valign: "top", margin: 0 }, text: "" } },
     ],
   });
@@ -143,7 +143,8 @@ async function main() {
     x, y, w, h, rectRadius: 0.12, fill: { color: fill }, line: { color: fill }, objectName: name });
   const badge = (s, icon, x, y, d, fill, name) => {
     s.addShape(pres.shapes.OVAL, { x, y, w: d, h: d, fill: { color: fill }, line: { color: fill }, objectName: `${name} circle` });
-    s.addImage({ data: icon, x: x + d * 0.24, y: y + d * 0.24, w: d * 0.52, h: d * 0.52, objectName: `${name} icon` });
+    s.addImage({ data: icon, x: x + d * 0.24, y: y + d * 0.24, w: d * 0.52, h: d * 0.52, objectName: `${name} icon`,
+      altText: `${name} icon` });
   };
   const numberBadge = (s, n, x, y, d, fill, name) => {
     s.addShape(pres.shapes.OVAL, { x, y, w: d, h: d, fill: { color: fill }, line: { color: fill }, objectName: `${name} circle` });
@@ -173,29 +174,34 @@ async function main() {
   // 1. Title
   // =====================================================================
   let s = newSlide("QGX Title", null, "Introduction");
-  text(s, "CAPSTONE PROJECT CPG 218  ·  MENTOR EVALUATION", { x: 0.8, y: 1.45, w: 8, h: 0.4, fontSize: 14, bold: true,
-    color: C.background2, charSpacing: 2 });
   s.addText("QGenomix", { placeholder: "title" });
   s.addText("Quantum-assisted genetic screening for early-onset type 2 diabetes in lean South Asians",
     { placeholder: "body" });
-  text(s, "TEAM", { x: 0.8, y: 4.55, w: 3, h: 0.3, fontSize: 12, bold: true, color: C.background2, charSpacing: 2 });
-  text(s, TEAM.map(([n, r], i) => ({ text: `${n}  ·  ${r}`, options: { breakLine: i < TEAM.length - 1 } })),
-    { x: 0.8, y: 4.9, w: 4.9, h: 1.7, fontSize: 15, color: C.background1, paraSpaceAfter: 2 });
-  text(s, "MENTOR", { x: 6.0, y: 4.55, w: 3, h: 0.3, fontSize: 12, bold: true, color: C.background2, charSpacing: 2 });
+  badge(s, ICON.dna, 9.95, 0.55, 2.75, C.accent1, "DNA");
+  badge(s, ICON.atom, 11.95, 2.45, 1.2, C.accent2, "Quantum");
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: MX, y: 4.05, w: CW, h: 2.85, rectRadius: 0.15,
+    fill: { color: C.background1, transparency: 91 }, line: { color: C.background1, transparency: 100 },
+    objectName: "People panel" });
+  text(s, "PRESENTED BY", { x: 1.0, y: 4.35, w: 4, h: 0.3, fontSize: 12, bold: true, color: C.background2, charSpacing: 2 });
+  TEAM.forEach(([n, r], i) => {
+    const x = 1.0 + (i % 3) * 2.55, y = 4.85 + Math.floor(i / 3) * 1.0;
+    text(s, [{ text: n, options: { bold: true, fontSize: 17, color: C.background1, breakLine: true } },
+      { text: r, options: { fontSize: 12, color: C.background2 } }], { x, y, w: 2.45, h: 0.8, objectName: `Member ${i + 1}` });
+  });
+  s.addShape(pres.shapes.LINE, { x: 8.75, y: 4.4, w: 0, h: 2.15, line: { color: "4E7A80", width: 1 },
+    objectName: "Panel divider" });
+  text(s, "GUIDED BY", { x: 9.1, y: 4.35, w: 3.4, h: 0.3, fontSize: 12, bold: true, color: C.background2, charSpacing: 2 });
   text(s, [
-    { text: MENTOR, options: { bold: true, fontSize: 17, breakLine: true } },
-    { text: "Assistant Professor, CSED", options: { breakLine: true } },
-    { text: " ", options: { fontSize: 8, breakLine: true } },
-    { text: "Computer Science and Engineering Department", options: { fontSize: 12, breakLine: true } },
-    { text: "Thapar Institute of Engineering and Technology", options: { fontSize: 12, breakLine: true } },
-    { text: "Patiala  ·  October 2026", options: { fontSize: 12 } },
-  ], { x: 6.0, y: 4.9, w: 3.6, h: 1.9, fontSize: 15, color: C.background1 });
-  badge(s, ICON.dna, 9.55, 1.25, 3.0, C.accent1, "DNA");
-  badge(s, ICON.atom, 11.35, 3.95, 1.45, C.accent2, "Quantum");
-  s.addNotes("Introduce the team and the mentor. One sentence on the project: QGenomix asks how much genetics adds to " +
+    { text: MENTOR, options: { bold: true, fontSize: 19, color: C.background1, breakLine: true } },
+    { text: "Assistant Professor, CSED", options: { fontSize: 14, color: C.background2, breakLine: true } },
+    { text: " ", options: { fontSize: 6, breakLine: true } },
+    { text: "Computer Science and Engineering Department", options: { fontSize: 12, color: C.background2, breakLine: true } },
+    { text: "Thapar Institute of Engineering and Technology", options: { fontSize: 12, color: C.background2, breakLine: true } },
+    { text: "Patiala", options: { fontSize: 12, color: C.background2 } },
+  ], { x: 9.1, y: 4.85, w: 3.5, h: 1.9, objectName: "Guide" });
+  s.addNotes("Introduce the team and our guide. One sentence on the project: QGenomix asks how much genetics adds to " +
     "India's diabetes screening for lean South Asians, and tests honestly whether quantum computing helps find " +
-    "interacting genes. Today: the problem, what we built since the mid-semester review, the results, the working " +
-    "application, and the plan for the final panel.");
+    "interacting genes. The talk covers the problem, our approach, the results and the working application.");
 
   // =====================================================================
   // 2. Problem
@@ -227,9 +233,9 @@ async function main() {
   s = newSlide("QGX Content", "What QGenomix sets out to answer", "Introduction");
   const questions = [
     ["How much does genetics add to India's screening questionnaire, especially for lean people?",
-      "Polygenic and mechanism scores on real genomes (E1, E8)", C.accent1],
+      "Answered with polygenic and mechanism scores on real genomes", C.accent1],
     ["Do insulin-production (β-cell) and fat-distribution (lipodystrophy) variants interact, and can quantum " +
-      "optimisation help find them?", "Score test, QUBO, QAOA and a quantum encoder (E2–E7b)", C.accent2],
+      "optimisation help find them?", "Answered with a score test, QUBO, QAOA and a quantum encoder", C.accent2],
   ];
   questions.forEach(([q, how, color], i) => {
     const x = MX + i * 6.215;
@@ -250,37 +256,6 @@ async function main() {
     "help the lean people current screening misses? The second is scientific and technical: do two diabetes " +
     "mechanisms interact, and does quantum optimisation help find the interacting pairs? Because quantum claims are " +
     "easy to overstate, every quantum step has a matched classical control.");
-
-  // =====================================================================
-  // 4. Progress since mid-semester
-  // =====================================================================
-  s = newSlide("QGX Content", "Progress since the mid-semester review", "Progress");
-  const objectives = [["Data pipeline", 1.0], ["Quantum encoder", 0.2], ["Classical baselines + PRS", 0.15],
-    ["Hybrid ensemble", 0.0], ["SHAP refinement loop*", 0.0], ["Benchmark + statistical tests", 0.1]].reverse();
-  s.addChart(pres.charts.BAR, [
-    { name: "At mid-semester", labels: objectives.map((o) => o[0]), values: objectives.map((o) => o[1]) },
-    { name: "Now", labels: objectives.map((o) => o[0]), values: objectives.map(() => 1.0) },
-  ], chartBase({
-    x: MX, y: 1.4, w: 7.3, h: 5.05, barDir: "bar", barGrouping: "clustered", barGapWidthPct: 60,
-    chartColors: [HEX.accent5, HEX.accent1], valAxisMinVal: 0, valAxisMaxVal: 1.0, valAxisMajorUnit: 0.25,
-    valAxisLabelFormatCode: "0%", dataLabelFormatCode: "0%", dataLabelPosition: "outEnd", dataLabelFontSize: 11,
-    showLegend: true, legendPos: "b", title: "Approved objectives: progress",
-  }));
-  caption(s, `*Built and measured, then replaced: the score test with QUBO selection found ${pc(edrScore)} of planted ` +
-    `pairs, SHAP ranking ${pc(edrShap)}.`, MX, 6.5, 7.3, 0.4);
-  text(s, "Added beyond the plan", { x: 8.35, y: 1.5, w: 4.38, h: 0.45, fontSize: 20, bold: true });
-  const extras = [[ICON.atom, "QAOA with error mitigation", C.accent2], [ICON.clipboard, "Clinical factors and the IDRS", C.accent1],
-    [ICON.shield, "Real-genome, fairness and robustness tests", C.accent1], [ICON.dna, "LD imputation for consumer DNA files", C.accent1],
-    [ICON.laptop, "App with PDF report, REST API and Docker", C.accent1]];
-  extras.forEach(([icon, label, color], i) => {
-    const y = 2.15 + i * 0.86;
-    badge(s, icon, 8.35, y, 0.6, color, `Extra ${i + 1}`);
-    text(s, label, { x: 9.15, y, w: 3.58, h: 0.6, fontSize: 15, valign: "middle" });
-  });
-  s.addNotes("At mid-semester only the data pipeline was complete. All six approved objectives are now done; the SHAP " +
-    "refinement loop was built and measured, but the score test with QUBO selection found far more of the planted " +
-    "pairs, so it replaced the loop and SHAP is now used for per-person explanations. On the right is what we added " +
-    "beyond the plan.");
 
   // =====================================================================
   // 5. Data
@@ -316,9 +291,9 @@ async function main() {
   // =====================================================================
   s = newSlide("QGX Content", "Eight stages, two of them quantum", "Approach");
   s.addImage({ path: FIG("fig_architecture.png"), x: (W - 9.3) / 2, y: 1.35, w: 9.3, h: 9.3 * 1210 / 2081,
-    objectName: "Architecture diagram" });
+    objectName: "Architecture diagram", altText: "QGenomix architecture: three inputs feed eight stages, two of them quantum" });
   s.addNotes("Walk the pipeline: data preparation, cohort and simulator, interaction search, pair selection (QUBO with " +
-    "annealing and QAOA), the quantum encoder, the model zoo of 17 predictors, the evaluation (15 experiments), and " +
+    "annealing and QAOA), the quantum encoder, the model zoo of 17 predictors, fifteen experiments, and " +
     "the risk-report application. The purple stages are quantum; each has a classical control.");
 
   // =====================================================================
@@ -339,7 +314,8 @@ async function main() {
     text(s, head, { x: MX + 1.05, y, w: 5.2, h: 0.4, fontSize: 19, bold: true });
     text(s, body, { x: MX + 1.05, y: y + 0.45, w: 5.2, h: 1.1, fontSize: 15 });
   });
-  s.addImage({ path: FIG("fig_circuit.png"), x: 7.2, y: 1.6, w: 5.5, h: 5.5 * 1472 / 2112, objectName: "Circuit diagram" });
+  s.addImage({ path: FIG("fig_circuit.png"), x: 7.2, y: 1.6, w: 5.5, h: 5.5 * 1472 / 2112, objectName: "Circuit diagram",
+    altText: "Eight-qubit pair encoder circuit: angle embedding, RY and RZ rotations, CZ gates, Z measurements" });
   caption(s, "The pair encoder, two of its four layers: data rotations, trainable RY/RZ, a chain of CZ gates",
     7.2, 5.55, 5.5, 0.5);
   s.addNotes("Quantum computing appears in two places. Choosing a non-redundant set of gene pairs is a QUBO, which we " +
@@ -508,9 +484,9 @@ async function main() {
   s = newSlide("QGX Content", "The working application", "Product");
   const dashH = 4.55, dashW = dashH * 1180 / 1200, pdfW = dashH * 1240 / 1754;
   s.addImage({ path: path.join(ROOT, "docs/report/asha_top.png"), x: MX, y: 1.45, w: dashW, h: dashH,
-    objectName: "Dashboard screenshot" });
+    objectName: "Dashboard screenshot", altText: "Dashboard report for a lean, high-risk synthetic demo persona" });
   s.addImage({ path: FIG("app_pdf_report.png"), x: MX + dashW + 0.3, y: 1.45, w: pdfW, h: dashH,
-    objectName: "PDF report" });
+    objectName: "PDF report", altText: "One-page PDF version of the risk report" });
   caption(s, "Dashboard report for a synthetic demo persona", MX, 6.1, dashW, 0.35);
   caption(s, "The one-page PDF", MX + dashW + 0.3, 6.1, pdfW, 0.35);
   const appX = MX + dashW + pdfW + 0.65;
@@ -519,7 +495,7 @@ async function main() {
     "Live lifestyle what-ifs", "PDF report, REST API and Docker image"];
   text(s, feats.map((t, i) => ({ text: t, options: { bullet: true, breakLine: i < feats.length - 1 } })),
     { x: appX, y: 1.5, w: W - MX - appX, h: 4.6, fontSize: 15, paraSpaceAfter: 10 });
-  s.addNotes("This is the product. A user uploads a 23andMe or AncestryDNA file and answers six questions. The app " +
+  s.addNotes("This is the application. A user uploads a 23andMe or AncestryDNA file and answers six questions. The app " +
     "imputes missing variants, shows the risk with its percentile and the IDRS, flags people the BMI rule or the IDRS " +
     "would miss, explains which mechanisms and gene pairs drive the risk, and lets them try lifestyle changes. The " +
     "same report downloads as a PDF, and everything runs from one Docker image. Live demo: make app.");
@@ -549,41 +525,34 @@ async function main() {
     "bit, and the whole application runs with one Docker command.");
 
   // =====================================================================
-  // 16. Plan
+  // 16. What comes next
   // =====================================================================
-  s = newSlide("QGX Content", "Next: the final panel on 9 November", "Next steps");
-  const steps = [["28–31 Oct", "IBM quantum hardware run, public online demo, updated figures and report"],
-    ["1–5 Nov", "Final report, paper draft, slides and a three-minute demo video"],
-    ["6–9 Nov", "Test run on a clean machine and a timed rehearsal"]];
-  s.addShape(pres.shapes.LINE, { x: MX + 0.4, y: 1.95, w: 2 * 4.14, h: 0, line: { color: HEX.grid, width: 2 },
-    objectName: "Timeline line" });
-  steps.forEach(([d, t], i) => {
-    const x = MX + i * 4.14;
-    numberBadge(s, i + 1, x + 0.05, 1.6, 0.7, C.accent1, `Step ${i + 1}`);
-    text(s, d, { x, y: 2.5, w: 3.8, h: 0.45, fontSize: 20, bold: true });
-    text(s, t, { x, y: 3.0, w: 3.6, h: 1.0, fontSize: 15 });
-  });
-  const kept = [
-    [ICON.atom, "Kept for the panel: real IBM quantum run", "Script ready and rehearsed on the Kingston noise " +
-      "model; one batched job uses about 2 of the 10 free QPU minutes.", C.accent2],
-    [ICON.globe, "Kept for the panel: public online demo", "Docker image built and tested; deploy it to a free " +
-      "host under a team account and share the link.", C.accent1],
+  s = newSlide("QGX Content", "What comes next", "Outlook");
+  const next = [
+    [ICON.atom, "Run on a real IBM quantum computer", "The QAOA script with error mitigation is ready and rehearsed " +
+      "on IBM's noise model; one batched job uses about 2 of the 10 free QPU minutes.", C.accent2],
+    [ICON.globe, "A public online demo", "The Docker image is built and tested; deploying it to a free host gives " +
+      "anyone a link to try the application.", C.accent1],
+    [ICON.heart, "Validation on Indian patients", "Real outcomes from a consented Indian cohort, such as GenomeIndia " +
+      "data through the Indian Biological Data Centre, would test the simulated findings.", C.accent3],
+    [ICON.dna, "Better imputation, more ancestries", "A larger reference panel and models for other ancestries " +
+      "would extend reliable reports beyond South Asians.", C.accent4],
   ];
-  kept.forEach(([icon, head, body, color], i) => {
-    const x = MX + i * 6.215;
-    card(s, x, 4.45, 5.915, 2.1, `Kept card ${i + 1}`);
-    badge(s, icon, x + 0.3, 4.75, 0.8, color, `Kept ${i + 1}`);
-    text(s, head, { x: x + 1.3, y: 4.72, w: 4.4, h: 0.45, fontSize: 17, bold: true });
-    text(s, body, { x: x + 1.3, y: 5.22, w: 4.4, h: 1.15, fontSize: 15 });
+  next.forEach(([icon, head, body, color], i) => {
+    const x = MX + (i % 2) * 6.215, y = 1.55 + Math.floor(i / 2) * 2.6;
+    card(s, x, y, 5.915, 2.3, `Next card ${i + 1}`);
+    badge(s, icon, x + 0.3, y + 0.32, 0.8, color, `Next ${i + 1}`);
+    text(s, head, { x: x + 1.3, y: y + 0.3, w: 4.4, h: 0.45, fontSize: 18, bold: true });
+    text(s, body, { x: x + 1.3, y: y + 0.82, w: 4.4, h: 1.3, fontSize: 15 });
   });
-  s.addNotes("Two features are deliberately kept for the final panel because each needs an account in our own name: " +
-    "the run on a real IBM quantum computer, which is scripted and rehearsed, and a public online demo from the " +
-    "Docker image. The rest of the time goes to the final report, a paper draft, slides, a demo video and rehearsal.");
+  s.addNotes("Four directions. A run on a real IBM quantum computer, which is scripted and rehearsed. A public demo " +
+    "from the Docker image. Most important scientifically, validation on real Indian patients, because our outcomes " +
+    "are simulated. And a larger imputation panel with models for more ancestries.");
 
   // =====================================================================
-  // 17. Closing
+  // 16. Closing
   // =====================================================================
-  s = newSlide("QGX Closing", null, "Next steps");
+  s = newSlide("QGX Closing", null, "Outlook");
   s.addText("Thank you", { placeholder: "title" });
   s.addText("Questions and feedback are welcome", { placeholder: "body" });
   const takeaways = [
@@ -593,14 +562,19 @@ async function main() {
     "A working, tested application turns a consumer DNA file into an explained report.",
   ];
   text(s, takeaways.map((t, i) => ({ text: t, options: { bullet: true, breakLine: i < takeaways.length - 1 } })),
-    { x: 0.8, y: 3.0, w: 8.1, h: 2.7, fontSize: 17, color: C.background1, paraSpaceAfter: 10 });
-  text(s, `${TEAM.map(([n]) => n).join("  ·  ")}`, { x: 0.8, y: 6.15, w: 11.7, h: 0.35, fontSize: 13,
-    color: C.background2 });
-  text(s, `Mentor: ${MENTOR}, Assistant Professor, CSED, Thapar Institute of Engineering and Technology, Patiala`,
-    { x: 0.8, y: 6.55, w: 11.7, h: 0.35, fontSize: 13, color: C.background2 });
+    { x: 0.8, y: 2.95, w: 8.3, h: 2.7, fontSize: 17, color: C.background1, paraSpaceAfter: 10 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: MX, y: 5.85, w: CW, h: 1.1, rectRadius: 0.15,
+    fill: { color: C.background1, transparency: 91 }, line: { color: C.background1, transparency: 100 },
+    objectName: "People panel" });
+  text(s, [
+    { text: "PRESENTED BY   ", options: { bold: true, fontSize: 11, color: C.background2, charSpacing: 2 } },
+    { text: TEAM.map(([n]) => n).join("  ·  "), options: { fontSize: 14, color: C.background1, breakLine: true } },
+    { text: "GUIDED BY   ", options: { bold: true, fontSize: 11, color: C.background2, charSpacing: 2 } },
+    { text: `${MENTOR}, Assistant Professor, CSED, Thapar Institute of Engineering and Technology, Patiala`,
+      options: { fontSize: 14, color: C.background1 } },
+  ], { x: 1.0, y: 5.97, w: 11.4, h: 0.85, valign: "middle", paraSpaceAfter: 4, objectName: "People" });
   badge(s, ICON.dna, 9.75, 1.6, 2.6, C.accent1, "Closing DNA");
-  s.addNotes("Close with the four takeaways and invite questions. Ask the mentor which emphasis to give the final " +
-    "panel: the clinical result, the quantum study, or the application.");
+  s.addNotes("Close with the four takeaways and invite questions.");
 
   await pres.writeFile({ fileName: OUT });
   await applyTheme(OUT);
