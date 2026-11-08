@@ -1,6 +1,6 @@
 """Run the experiments that produce every figure and table in the report.
 
-    python scripts/run_experiments.py E0 E1 E2 E3 E4 E7 E7b E9 E10 E11 E12 E13
+    python scripts/run_experiments.py E0 E1 E2 E3 E4 E7 E7b E9 E10 E11 E12 E13 E14 E15
         (any subset; E7b needs E7, E10 and E13 need the bundle)
     python scripts/run_experiments.py E1 --seeds 0 --n 10000
 """
@@ -21,7 +21,8 @@ from qgenomix.utils import log, setup_logging  # noqa: E402
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("which", nargs="+",
-                    choices=["E0", "E1", "E2", "E3", "E4", "E7", "E7b", "E9", "E10", "E11", "E12", "E13"])
+                    choices=["E0", "E1", "E2", "E3", "E4", "E7", "E7b", "E9", "E10", "E11", "E12", "E13", "E14",
+                             "E15"])
     ap.add_argument("--config", default="configs/main.yaml")
     ap.add_argument("--seeds", type=int, nargs="*", default=[0, 1, 2])
     ap.add_argument("--n", type=int, default=None)
@@ -54,4 +55,8 @@ if __name__ == "__main__":
             ex.e12_robustness(cfg)
         elif name == "E13":
             ex.e13_imputation(cfg)
+        elif name == "E14":
+            ex.e14_entanglement(cfg)
+        elif name == "E15":
+            ex.e15_qaoa_selection(cfg)
         log.info("%s finished in %.1f min", name, (time.time() - t0) / 60)

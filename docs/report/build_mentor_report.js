@@ -1,23 +1,31 @@
-// QGenomix mentor evaluation report in the Thapar capstone format: cover, abstract, declaration,
-// acknowledgement, contents, lists, chapters 1-6, references and the mentor's remarks page.
+// QGenomix final reports in the Thapar capstone format: cover, abstract, declaration, acknowledgement, contents,
+// lists, chapters 1-6, references and a remarks page. One source builds both versions, so their format cannot drift:
 //
-//   cd docs/report && npm install && npm run build
+//   node build_mentor_report.js            final mentor evaluation report
+//   node build_mentor_report.js --panel    final panel evaluation report (changes since the mentor evaluation,
+//                                          the final demonstration and future scope, and a page for the panel)
+//   cd docs/report && npm install && npm run build      both
 //
 // Every number in the text is read from results/ (and bundle/meta.json when present), so the report always
-// matches the experiments. Page numbers in the contents and the lists come from a first rendering pass with
-// LibreOffice and pdftotext; without those tools the report is written without page numbers.
+// matches the experiments. The contents and the two lists are real Word fields built from the Heading styles and
+// the caption numbers: References > Update Table (or right click > Update Field) rebuilds them. Figure and table
+// numbers are SEQ fields and the mentions in the text are REF fields to them. The page numbers stored in the fields
+// come from a first rendering pass with LibreOffice and pdftotext, and Word refreshes them when the file is opened.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const {
-  AlignmentType, BorderStyle, Document, Footer, HeadingLevel, ImageRun, LeaderType, LevelFormat, NumberFormat,
-  Packer, PageNumber, Paragraph, ShadingType, Table, TableCell, TableRow, TabStopType, TextRun, VerticalAlign,
-  WidthType,
+  AlignmentType, Bookmark, BorderStyle, BuilderElement, Document, Footer, HeadingLevel, ImageRun, InternalHyperlink,
+  LeaderType, LevelFormat, NumberFormat, Packer, PageNumber, Paragraph, Run, ShadingType, Tab, Table, TableCell,
+  TableOfContents, TableRow, TabStopType, TextRun, VerticalAlign, WidthType,
 } = require("docx");
 
 const ROOT = path.resolve(__dirname, "../..");
-const OUT = path.resolve(process.argv[2] || path.join(ROOT, "QGenomix_Mentor_Evaluation_Report.docx"));
+const PANEL = process.argv.includes("--panel");
+const EVALUATION = PANEL ? "Final Panel Evaluation" : "Final Mentor Evaluation";
+const OUT = path.resolve(process.argv.slice(2).find((a) => !a.startsWith("--")) ||
+  path.join(ROOT, PANEL ? "QGenomix_Final_Panel_Evaluation_Report.docx" : "QGenomix_Final_Mentor_Evaluation_Report.docx"));
 const CONTENT_W = 9386; // A4 width 11906 - left 1440 - right 1080
 const FONT = "Times New Roman";
 
@@ -69,6 +77,21 @@ const PRS_T = "PRS agreement with the full genome", ERR_T = "Error in the risk p
 const mit = (k) => T.e7b[k];
 const hwRun = T.e7b.xy_p1 && T.e7b.xy_p1.hardware_mitigated !== undefined ? T.e7b.xy_p1 : null; // real IBM run, if done
 const e6 = T.e6.stats, e6win = T.e6.best_objective_share.qubo;
+const dLean = settings.map((s) => 100 * (e12[s].lean_capture_genetic - e12[s].lean_capture_idrs));
+const depthMean = (form, depth) => {
+  const v = T.e7.problems.flatMap((p) => p.runs).filter((r) => r.formulation === form && r.depth === depth)
+    .map((r) => r.ideal.approx_ratio);
+  return v.reduce((x, y) => x + y, 0) / v.length;
+};
+const e14 = T.e14, e15 = T.e15.summary;
+const a14 = (k) => e14.auc[k][0];
+const e0raw = R("e0_data.json");
+const pearson = (x, y) => {
+  const mean = (v) => v.reduce((a, b) => a + b, 0) / v.length, mx = mean(x), my = mean(y);
+  const sxy = x.reduce((a, v, i) => a + (v - mx) * (y[i] - my), 0);
+  return sxy / Math.sqrt(x.reduce((a, v) => a + (v - mx) ** 2, 0) * y.reduce((a, v) => a + (v - my) ** 2, 0));
+};
+const eafR = pearson(e0raw.eaf_real_sas, e0raw.eaf_mosaic);
 
 const pyFiles = fs.readdirSync(path.join(ROOT, "src/qgenomix"), { recursive: true }).filter((f) => f.endsWith(".py"));
 const srcLines = pyFiles.reduce((n, f) =>
@@ -78,39 +101,7 @@ const nTests = fs.readdirSync(path.join(ROOT, "tests")).filter((f) => f.endsWith
   .reduce((n, f) => n + (fs.readFileSync(path.join(ROOT, "tests", f), "utf8").match(/^def test_/gm) || []).length, 0);
 
 // ---------------------------------------------------------------- references (numbered in order of first citation)
-const REFS = {
-  anjana: "R. M. Anjana et al., \"Metabolic non-communicable disease health report of India: the ICMR-INDIAB national cross-sectional study (ICMR-INDIAB-17),\" Lancet Diabetes Endocrinol., vol. 11, no. 7, pp. 474–489, 2023.",
-  narayan: "K. M. V. Narayan and A. M. Kanaya, \"Why are South Asians prone to type 2 diabetes? A hypothesis based on underexplored pathways,\" Diabetologia, vol. 63, pp. 1103–1109, 2020.",
-  mohan: "V. Mohan, R. Deepa, M. Deepa, S. Somannavar and M. Datta, \"A simplified Indian Diabetes Risk Score for screening for undiagnosed diabetic subjects,\" J. Assoc. Physicians India, vol. 53, pp. 759–763, 2005.",
-  huerta: "A. Huerta-Chagoya et al., medRxiv, 2025, doi: 10.1101/2025.07.21.25331778 (D-PRISM scores PGS005373–PGS005377).",
-  loesch: "D. P. Loesch et al., Nature Communications, 2025, doi: 10.1038/s41467-025-56695-z (mechanism scores PGS005115–PGS005119).",
-  khera: "A. V. Khera et al., \"Genome-wide polygenic scores for common diseases identify individuals with risk equivalent to monogenic mutations,\" Nat. Genet., vol. 50, pp. 1219–1224, 2018.",
-  udler: "M. S. Udler et al., \"Type 2 diabetes genetic loci informed by multi-trait associations point to disease mechanisms and subtypes: a soft clustering analysis,\" PLoS Med., vol. 15, no. 9, art. e1002654, 2018.",
-  ruan: "Y. Ruan et al., \"Improving polygenic prediction in ancestrally diverse populations,\" Nat. Genet., vol. 54, pp. 573–580, 2022.",
-  mahajan: "A. Mahajan et al., \"Multi-ancestry genetic study of type 2 diabetes highlights the power of diverse populations for discovery and translation,\" Nat. Genet., vol. 54, pp. 560–572, 2022.",
-  cordell: "H. J. Cordell, \"Detecting gene–gene interactions that underlie human diseases,\" Nat. Rev. Genet., vol. 10, pp. 392–404, 2009.",
-  wan: "X. Wan et al., \"BOOST: A fast approach to detecting gene-gene interactions in genome-wide case-control studies,\" Am. J. Hum. Genet., vol. 87, no. 3, pp. 325–340, 2010.",
-  lucas: "A. Lucas, \"Ising formulations of many NP problems,\" Frontiers in Physics, vol. 2, art. 5, 2014.",
-  farhi: "E. Farhi, J. Goldstone and S. Gutmann, \"A quantum approximate optimization algorithm,\" arXiv:1411.4028, 2014.",
-  hadfield: "S. Hadfield et al., \"From the quantum approximate optimization algorithm to a quantum alternating operator ansatz,\" Algorithms, vol. 12, no. 2, art. 34, 2019.",
-  bartschi: "A. Bärtschi and S. Eidenbenz, \"Deterministic preparation of Dicke states,\" in Fundamentals of Computation Theory (FCT), LNCS 11651, pp. 126–139, 2019.",
-  perez: "A. Pérez-Salinas, A. Cervera-Lierta, E. Gil-Fuster and J. I. Latorre, \"Data re-uploading for a universal quantum classifier,\" Quantum, vol. 4, art. 226, 2020.",
-  havlicek: "V. Havlíček et al., \"Supervised learning with quantum-enhanced feature spaces,\" Nature, vol. 567, pp. 209–212, 2019.",
-  temme: "K. Temme, S. Bravyi and J. M. Gambetta, \"Error mitigation for short-depth quantum circuits,\" Phys. Rev. Lett., vol. 119, art. 180509, 2017.",
-  bravyi: "S. Bravyi, S. Sheldon, A. Kandala, D. C. Mckay and J. M. Gambetta, \"Mitigating measurement errors in multiqubit experiments,\" Phys. Rev. A, vol. 103, art. 042605, 2021.",
-  bonet: "X. Bonet-Monroig, R. Sagastizabal, M. Singh and T. E. O'Brien, \"Low-cost error mitigation by symmetry verification,\" Phys. Rev. A, vol. 98, art. 062339, 2018.",
-  marchini: "J. Marchini and B. Howie, \"Genotype imputation for genome-wide association studies,\" Nat. Rev. Genet., vol. 11, pp. 499–511, 2010.",
-  browning: "B. L. Browning and S. R. Browning, \"Genotype imputation with millions of reference samples,\" Am. J. Hum. Genet., vol. 98, no. 1, pp. 116–126, 2016.",
-  lundberg: "S. M. Lundberg and S.-I. Lee, \"A unified approach to interpreting model predictions,\" in Advances in Neural Information Processing Systems (NeurIPS), 2017.",
-  kg: "1000 Genomes Project Consortium, \"A global reference for human genetic variation,\" Nature, vol. 526, pp. 68–74, 2015.",
-  lambert: "S. A. Lambert et al., \"The Polygenic Score Catalog as an open database for reproducibility and systematic evaluation,\" Nat. Genet., vol. 53, pp. 420–425, 2021.",
-  plink: "C. C. Chang et al., \"Second-generation PLINK: rising to the challenge of larger and richer datasets,\" GigaScience, vol. 4, art. 7, 2015.",
-  tripod: "G. S. Collins, J. B. Reitsma, D. G. Altman and K. G. M. Moons, \"Transparent reporting of a multivariable prediction model for individual prognosis or diagnosis (TRIPOD): the TRIPOD statement,\" BMJ, vol. 350, art. g7594, 2015.",
-  peng: "H. Peng, F. Long and C. Ding, \"Feature selection based on mutual information: criteria of max-dependency, max-relevance, and min-redundancy,\" IEEE Trans. Pattern Anal. Mach. Intell., vol. 27, no. 8, pp. 1226–1238, 2005.",
-  delong: "E. R. DeLong, D. M. DeLong and D. L. Clarke-Pearson, \"Comparing the areas under two or more correlated receiver operating characteristic curves: a nonparametric approach,\" Biometrics, vol. 44, no. 3, pp. 837–845, 1988.",
-  sunxu: "X. Sun and W. Xu, \"Fast implementation of DeLong's algorithm for comparing the areas under correlated receiver operating characteristic curves,\" IEEE Signal Process. Lett., vol. 21, no. 11, pp. 1389–1393, 2014.",
-  ramachandran: "A. Ramachandran, C. Snehalatha, S. Mary, B. Mukesh, A. D. Bhaskar and V. Vijay, \"The Indian Diabetes Prevention Programme shows that lifestyle modification and metformin prevent type 2 diabetes in Asian Indian subjects with impaired glucose tolerance (IDPP-1),\" Diabetologia, vol. 49, pp. 289–297, 2006.",
-};
+const REFS = JSON.parse(fs.readFileSync(path.join(__dirname, "references.json"), "utf8")); // APA, see build_references.py
 
 const ABBREVIATIONS = [
   ["API", "Application Programming Interface"], ["AUC", "Area Under the ROC Curve"], ["BMI", "Body-Mass Index"],
@@ -118,7 +109,7 @@ const ABBREVIATIONS = [
   ["D-PRISM", "South Asian-trained multi-ancestry polygenic score for type 2 diabetes (PGS005373–7)"],
   ["EDR@K", "Epistasis Detection Rate at K"], ["GRCh37", "Genome Reference Consortium human genome build 37"],
   ["GWAS", "Genome-Wide Association Study"], ["HWE", "Hardy–Weinberg Equilibrium"],
-  ["IDRS", "Indian Diabetes Risk Score"], ["LD", "Linkage Disequilibrium"], ["LR", "Logistic Regression"],
+  ["IDRS", "Indian Diabetes Risk Score"], ["LD", "Linkage Disequilibrium"], ["LNS", "Large-Neighbourhood Search"], ["LR", "Logistic Regression"],
   ["MAF", "Minor Allele Frequency"], ["mRMR", "minimum Redundancy Maximum Relevance"], ["OOF", "Out-of-Fold"],
   ["PCA", "Principal Component Analysis"], ["PGS", "Polygenic Score"], ["PRS", "Polygenic Risk Score"],
   ["QAOA", "Quantum Approximate Optimisation Algorithm"], ["QC", "Quality Control"],
@@ -130,34 +121,48 @@ const ABBREVIATIONS = [
 ];
 
 // ---------------------------------------------------------------- figure and table labels (reading order)
-const FIG_ORDER = ["arch", "flow", "circuit", "dash", "pdf", "clinician", "e0", "e1", "e8", "e2", "e4", "e5", "e7",
-  "e7b", "e9", "e11", "e12", "e13", "e10"];
-const TAB_ORDER = ["changes", "lit", "fr", "cost", "risk", "wbs", "tools", "stages", "experiments", "problems",
-  "objectives", "panel", "schedule"];
+const FIG_ORDER = ["bmi", "lean_world", "arch", "flow", "circuit", "app_summary", "app_mech", "app_whatif",
+  "e0_pca", "e0_freq", "e0_prs", "phenotype", "e1", "e8", "e2", "e3", "e4", "e5", "e14", "e14_qubit", "e7", "e7b",
+  "e15", "e9", "e11",
+  "e12_auc", "e12_lean", "e13_error", "e13_flagged", "e10"];
+const TAB_ORDER = ["burden", "lit", "fr", "cost", "risk", "wbs", "tools", "changes", ...(PANEL ? ["since_mentor"] : []),
+  "stages", "experiments", "models", "selection", "lns", "fairness", "problems", "objectives",
+  ...(PANEL ? ["demo"] : ["panel", "schedule"])];
 const numberOf = (order, label) => {
   const i = order.indexOf(label);
   if (i < 0) throw new Error(`unknown label ${label}`);
   return i + 1;
 };
-const F = (label) => `Figure ${numberOf(FIG_ORDER, label)}`;
-const TB = (label) => `Table ${numberOf(TAB_ORDER, label)}`;
+const F = (label) => { numberOf(FIG_ORDER, label); return `⟦f:${label}⟧`; };
+const TB = (label) => { numberOf(TAB_ORDER, label); return `⟦t:${label}⟧`; };
 
 // ---------------------------------------------------------------- build state (reset for every pass)
 let S;
 function resetState(pages) {
-  S = { pages, toc: [], figs: [], tabs: [], refOrder: [], figNo: 0, tabNo: 0 };
+  S = { pages, toc: [], figs: [], tabs: [], refOrder: [], figNo: 0, tabNo: 0, lists: 0 };
 }
 const cite = (...keys) => `[${keys.map((k) => {
   if (!REFS[k]) throw new Error(`unknown reference ${k}`);
   if (!S.refOrder.includes(k)) S.refOrder.push(k);
-  return S.refOrder.indexOf(k) + 1;
+  return `⟦c:${k}:${S.refOrder.indexOf(k) + 1}⟧`;
 }).join(", ")}]`;
+const refYear = (k) => `${cite(k)} (${REFS[k].year})`; // "[12] (2026)", as in the literature table
 const pageOf = (key) => (S.pages ? S.pages[key] || "" : "00");
+
+// ---------------------------------------------------------------- Word fields, written the way Word writes them
+const fldChar = (type) => new BuilderElement({ name: "w:fldChar",
+  attributes: { type: { key: "w:fldCharType", value: type } } });
+const instrText = (code) => new BuilderElement({ name: "w:instrText",
+  attributes: { space: { key: "xml:space", value: "preserve" } }, children: [` ${code} `] });
+const field = (code, cached, props = {}) => new Run({ ...props,
+  children: [fldChar("begin"), instrText(code), fldChar("separate"), cached, fldChar("end")] });
+// a mention of a figure or a table; MERGEFORMAT keeps the text style when Word refreshes it
+const mention = (id, text, props) => field(`REF ${id} \\h \\* MERGEFORMAT`, text, props);
 
 // ---------------------------------------------------------------- text helpers: **bold**, ^{sup}, _{sub}, `code`
 function runs(text, base = {}) {
   const out = [];
-  const re = /(\*\*[^*]+\*\*|\^\{[^}]+\}|_\{[^}]+\}|`[^`]+`)/g;
+  const re = /(\*\*[^*]+\*\*|\^\{[^}]+\}|_\{[^}]+\}|`[^`]+`|⟦[^⟧]+⟧)/g;
   let last = 0, m;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) out.push(new TextRun({ text: text.slice(last, m.index), ...base }));
@@ -165,12 +170,19 @@ function runs(text, base = {}) {
     if (tok.startsWith("**")) out.push(new TextRun({ ...base, text: tok.slice(2, -2), bold: true }));
     else if (tok.startsWith("^{")) out.push(new TextRun({ ...base, text: tok.slice(2, -1), superScript: true }));
     else if (tok.startsWith("_{")) out.push(new TextRun({ ...base, text: tok.slice(2, -1), subScript: true }));
-    else out.push(new TextRun({ ...base, text: tok.slice(1, -1), font: "Consolas", size: (base.size || 24) - 3 }));
+    else if (tok.startsWith("⟦")) {
+      const [kind, id, n] = tok.slice(1, -1).split(":");
+      if (kind === "c") out.push(new InternalHyperlink({ anchor: `ref_${id}`, children: [new TextRun({ ...base, text: n })] }));
+      else if (kind === "f") out.push(mention(`fig_${id}`, `Figure ${numberOf(FIG_ORDER, id)}`, base));
+      else out.push(mention(`tab_${id}`, `Table ${numberOf(TAB_ORDER, id)}`, base));
+    } else out.push(new TextRun({ ...base, text: tok.slice(1, -1), font: "Consolas", size: (base.size || 24) - 3 }));
     last = m.index + tok.length;
   }
   if (last < text.length) out.push(new TextRun({ text: text.slice(last), ...base }));
   return out;
 }
+// the same text with no markup, for the entries of the two lists
+const plain = (text) => text.replace(/⟦c:[^:]+:(\d+)⟧/g, "$1").replace(/\*\*|`/g, "").replace(/[\^_]\{([^}]+)\}/g, "$1");
 const P = (text, o = {}) => new Paragraph({
   alignment: o.align ?? AlignmentType.JUSTIFIED, keepNext: o.keepNext, indent: o.indent,
   spacing: { after: o.after ?? 120, before: o.before ?? 0, line: o.line ?? 276 }, children: runs(text, o.run || {}),
@@ -178,44 +190,50 @@ const P = (text, o = {}) => new Paragraph({
 const C = (text, run = {}, after = 80) => new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after, line: 276 }, children: runs(text, run),
 });
-const FRONT = (text) => { // centred front-matter title (ABSTRACT, DECLARATION, ...), starts a new page
-  S.toc.push({ level: 0, text, key: `front:${text}` });
-  return new Paragraph({ heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, pageBreakBefore: true,
-    children: [new TextRun(text)] });
+const mark = (text, key, level) => { // a heading with the bookmark its contents entry links to
+  const id = `_Toc${100000 + S.toc.length}`;
+  S.toc.push({ level, text, key, id });
+  return [new Bookmark({ id, children: [new TextRun(text)] })];
 };
-const H1 = (text) => {
-  S.toc.push({ level: 1, text, key: `h:${text}` });
-  return new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun(text)] });
-};
-const H2 = (text, o = {}) => {
-  S.toc.push({ level: 2, text, key: `h:${text}` });
-  return new Paragraph({ heading: HeadingLevel.HEADING_2, keepNext: true, pageBreakBefore: o.pageBreak,
-    children: [new TextRun(text)] });
-};
+const FRONT = (text) => new Paragraph({ // centred front-matter title (ABSTRACT, DECLARATION, ...), starts a new page
+  heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, pageBreakBefore: true,
+  children: mark(text, `front:${text}`, 0) });
+const H1 = (text) => new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true,
+  children: mark(text, `h:${text}`, 1) });
+const H2 = (text) => new Paragraph({ heading: HeadingLevel.HEADING_2, keepNext: true,
+  children: mark(text, `h:${text}`, 2) });
 const H3 = (text) => new Paragraph({ heading: HeadingLevel.HEADING_3, keepNext: true, children: [new TextRun(text)] });
-const bullet = (text, align = AlignmentType.JUSTIFIED) => new Paragraph({
-  numbering: { reference: "bullets", level: 0 }, alignment: align, spacing: { after: 80, line: 276 }, children: runs(text),
-});
-const bullets = (items, align) => items.map((t) => bullet(t, align));
-const numbered = (items) => items.map((t) => new Paragraph({
-  numbering: { reference: "numbers", level: 0 }, alignment: AlignmentType.JUSTIFIED, spacing: { after: 80, line: 276 },
+// Bullets for a few items in no particular order; (i), (ii), ... for a sequence, for items referred to elsewhere, and
+// for any list of more than four items.
+const bullets = (items) => items.map((t) => new Paragraph({
+  numbering: { reference: "bullets", level: 0 }, alignment: AlignmentType.JUSTIFIED, spacing: { after: 80, line: 276 },
   children: runs(t),
 }));
+const enumerated = (items) => {
+  const instance = ++S.lists;
+  return items.map((t) => new Paragraph({
+    numbering: { reference: "roman", level: 0, instance }, alignment: AlignmentType.JUSTIFIED,
+    spacing: { after: 80, line: 276 }, children: runs(t),
+  }));
+};
+const list = (items) => (items.length > 4 ? enumerated(items) : bullets(items));
+const ROMAN = ["(i)", "(ii)", "(iii)", "(iv)", "(v)", "(vi)", "(vii)", "(viii)", "(ix)", "(x)"];
 
 // ---------------------------------------------------------------- tables
 const BORDER = { style: BorderStyle.SINGLE, size: 4, color: "8A9AA4" };
 const NONE = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 const BORDERS = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
 const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE };
-function cell(text, width, { header = false, align = AlignmentType.LEFT, shade, borders = BORDERS, size = 20,
-  pad = 60 } = {}) {
+function cell(text, width, { header = false, align = AlignmentType.LEFT, shade, borders = BORDERS, size = 21,
+  pad = 60, keepNext = false } = {}) {
   return new TableCell({
     width: { size: width, type: WidthType.DXA }, borders, verticalAlign: VerticalAlign.CENTER,
     shading: header ? { fill: "DCE5EA", type: ShadingType.CLEAR, color: "auto" }
       : shade ? { fill: shade, type: ShadingType.CLEAR, color: "auto" } : undefined,
     margins: { top: pad, bottom: pad, left: 100, right: 100 },
     children: String(text).split("\n").map((line) => new Paragraph({
-      alignment: align, spacing: { after: 0, line: 250 }, children: runs(line, { size, bold: header || undefined }),
+      alignment: align, keepNext, spacing: { after: 0, line: 250 },
+      children: runs(line, { size, bold: header || undefined }),
     })),
   });
 }
@@ -229,21 +247,27 @@ function table(headers, rows, widths, o = {}) {
     alignment: o.center ? AlignmentType.CENTER : undefined,
     rows: [
       ...(headers ? [new TableRow({ tableHeader: true, cantSplit: true,
-        children: headers.map((h, i) => cell(h, widths[i], { header: true, align: aligns[i], borders })) })] : []),
-      ...rows.map((r) => new TableRow({ cantSplit: true, children: r.map((t, i) => cell(t, widths[i], {
+        children: headers.map((h, i) => cell(h, widths[i], { header: true, align: aligns[i], borders, size: o.size,
+          keepNext: true })) })] : []),
+      ...rows.map((r, row) => new TableRow({ cantSplit: true, children: r.map((t, i) => cell(t, widths[i], {
         align: aligns[i], borders, size: o.size, pad: o.pad,
+        keepNext: Boolean(headers) && (o.whole ? row < rows.length - 1 : row < 2), // header + first rows, or all
         shade: o.shadeFirst && i === 0 ? "F3F6F8" : undefined })) })),
     ],
   });
 }
+// "Figure 3: ..." with a SEQ field for the number; the bookmark around "Figure 3" is what the mentions refer to
+const captionRuns = (kind, id, n, text) => [
+  new Bookmark({ id, children: [new TextRun({ text: `${kind} `, bold: true }),
+    field(`SEQ ${kind} \\* ARABIC`, String(n), { bold: true })] }),
+  new TextRun({ text: ": ", bold: true }), ...runs(text),
+];
 const tableCaption = (text, label) => {
-  const n = ++S.tabNo;
+  const n = ++S.tabNo, id = `tab_${label}`;
   if (numberOf(TAB_ORDER, label) !== n) throw new Error(`table "${label}" is number ${n}, TAB_ORDER says otherwise`);
-  S.tabs.push({ n, text });
-  return new Paragraph({
-    keepNext: true, spacing: { before: 120, after: 80 },
-    children: [new TextRun({ text: `Table ${n}: `, bold: true, size: 22 }), ...runs(text, { size: 22 })],
-  });
+  S.tabs.push({ n, text, id });
+  return new Paragraph({ style: "Caption", keepNext: true, spacing: { before: 160, after: 80 },
+    children: captionRuns("Table", id, n, text) });
 };
 
 // ---------------------------------------------------------------- figures
@@ -251,22 +275,22 @@ function pngSize(file) {
   const b = fs.readFileSync(file);
   return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
 }
-function figure(name, widthPx, caption, label) {
-  const file = path.isAbsolute(name) ? name : path.join(ROOT, "figures", name);
-  const n = ++S.figNo;
+// Figures are made at 300 dpi and placed at exactly that size (96 px per inch here), never scaled, so their 12 pt
+// labels print as large as the 12 pt text around them.
+function figure(name, caption, label) {
+  const file = path.join(ROOT, "figures", name);
+  const n = ++S.figNo, id = `fig_${label}`;
   if (numberOf(FIG_ORDER, label) !== n) throw new Error(`figure "${label}" is number ${n}, FIG_ORDER says otherwise`);
-  S.figs.push({ n, text: caption });
-  if (!fs.existsSync(file)) {
-    console.warn("missing figure", name);
-    return [C(`[Figure ${n} pending: ${name}]`, { italics: true }, 200)];
-  }
+  S.figs.push({ n, text: caption, id });
   const { w, h } = pngSize(file);
+  if (w / 300 > CONTENT_W / 1440) throw new Error(`${name} is wider than the text`);
   return [
-    new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, spacing: { before: 120, after: 60 },
+    new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, spacing: { before: 160, after: 60 },
       children: [new ImageRun({ type: "png", data: fs.readFileSync(file),
-        transformation: { width: widthPx, height: Math.round((widthPx * h) / w) } })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 },
-      children: [new TextRun({ text: `Figure ${n}: `, bold: true, size: 21 }), ...runs(caption, { size: 21, italics: true })] }),
+        transformation: { width: Math.round((w * 96) / 300), height: Math.round((h * 96) / 300) },
+        altText: { name: label, title: plain(caption), description: plain(caption) } })] }),
+    new Paragraph({ style: "Caption", alignment: AlignmentType.CENTER, spacing: { after: 200 },
+      children: captionRuns("Figure", id, n, caption) }),
   ];
 }
 const blank = (after = 120) => new Paragraph({ spacing: { after }, children: [] });
@@ -278,50 +302,56 @@ const line = (label, before = 360) => new Paragraph({ spacing: { before, after: 
 // =====================================================================
 function coverPage() {
   return [
-    new Paragraph({ spacing: { before: 500 }, children: [] }),
+    new Paragraph({ spacing: { before: 300 }, children: [] }),
     C(TITLE[0], { bold: true, size: 32 }, 40),
     C(TITLE[1], { bold: true, size: 32 }, 160),
-    C("Focus: early-onset type 2 diabetes in lean South Asians", { italics: true, size: 26 }, 360),
+    C("Focus: early-onset type 2 diabetes in lean South Asians", { size: 26 }, 400),
     C("Capstone Project Report", { bold: true, size: 26 }, 80),
-    C("MENTOR EVALUATION", { bold: true, size: 24 }, 440),
-    C("Submitted by:", {}, 120),
-    table(["Roll No.", "Name"], TEAM, [1800, 3000], { width: 4800, center: true,
-      aligns: [AlignmentType.CENTER, AlignmentType.LEFT] }),
-    blank(240),
+    C(EVALUATION, { size: 24 }, 520),
+    C("Submitted by", {}, 120),
+    ...TEAM.map(([, n]) => C(n, { bold: true }, 40)),
+    blank(320),
     C("BE Third Year, COE"),
-    C("CPG No: 218", {}, 400),
-    C("Under the Mentorship of"),
+    C("CPG No: 218", {}, 440),
+    C("Under the mentorship of"),
     C(MENTOR, { bold: true }),
-    C(MENTOR_TITLE, {}, 560),
+    C(MENTOR_TITLE, {}, 600),
     C("Computer Science and Engineering Department", { bold: true }),
     C("Thapar Institute of Engineering and Technology, Patiala", { bold: true }, 200),
-    C("October 2026"),
+    C("November 2026"),
   ];
 }
 
 function abstractPage() {
   return [
     FRONT("ABSTRACT"),
-    P(`Type 2 diabetes (T2D) affects an estimated 101 million adults in India. South Asians develop it younger and at ` +
-      `a lower body weight than Europeans, so screening that relies on body-mass index (BMI) misses many lean people ` +
-      `at risk, and the Indian Diabetes Risk Score (IDRS), the questionnaire used in Indian practice, cannot see ` +
-      `inherited risk. QGenomix is a quantum-classical hybrid framework that asks two questions: how much do polygenic ` +
-      `risk scores add to clinical screening for South Asians, and do genetic variants from two diabetes mechanisms, ` +
-      `insulin production (β-cell) and fat distribution (lipodystrophy), interact?`),
-    P(`The system uses the real genotypes of all 2,504 people in the 1000 Genomes Project, the South Asian-trained ` +
-      `D-PRISM polygenic score with five published mechanism scores, and 10,000 synthetic South Asians built from the ` +
-      `978 real South Asian haplotypes, with simulated outcomes so that every discovery claim can be checked against a ` +
-      `known truth. Candidate gene pairs are scored with a vectorised score test; a non-redundant set is chosen by ` +
-      `solving a QUBO with simulated annealing and with the Quantum Approximate Optimisation Algorithm (QAOA), ` +
-      `including a constraint-preserving circuit tested with error mitigation on an IBM noise model; the chosen pairs ` +
-      `are encoded by an 8-qubit variational quantum circuit. Seventeen predictors are compared in fifteen experiments, ` +
-      `and every quantum component is tested against a matched classical control.`),
+    P(`On 10 June 2023 The Tribune reported that the ICMR-INDIAB study, published that month in The Lancet Diabetes & ` +
+      `Endocrinology, had found 101 million Indians with diabetes and 136 million more with prediabetes ` +
+      `${cite("tribune", "anjana")}. On 14 November 2024 ThePrint reported a study in The Lancet that placed more than a ` +
+      `quarter of the world's 828 million adults with diabetes in India, 62% of them not on medication ` +
+      `${cite("theprint", "ncdrisc")}. The International Diabetes Federation's Diabetes Atlas of 2025 adds that 43% of ` +
+      `affected Indian adults do not know they have the disease ${cite("idf")}. South Asians also fall ill younger and ` +
+      `thinner than others: a 2021 study in The Lancet Diabetes & Endocrinology found that a body-mass index (BMI) of ` +
+      `23.9, which most charts call normal, carries the diabetes risk of a BMI of 30 in White people ` +
+      `${cite("caleyachetty")}. Screening by body weight therefore misses lean people at high risk, and the Indian ` +
+      `Diabetes Risk Score (IDRS), the questionnaire used in Indian practice, cannot see inherited risk.`),
+    P(`QGenomix is a quantum-classical hybrid framework built to find these people. It asks how much polygenic risk ` +
+      `scores add to clinical screening for South Asians, and whether genetic variants from two diabetes mechanisms, ` +
+      `insulin production (β-cell) and fat distribution (lipodystrophy), interact. It uses the real genotypes of all ` +
+      `2,504 people in the 1000 Genomes Project, the South Asian-trained D-PRISM score, five published mechanism scores ` +
+      `and 10,000 synthetic South Asians built from real haplotypes, with simulated outcomes so that every discovery can ` +
+      `be checked against a known truth. Gene pairs are scored with a vectorised test, a non-redundant set is chosen by ` +
+      `a QUBO solved with simulated annealing and with the Quantum Approximate Optimisation Algorithm (QAOA), and the ` +
+      `chosen pairs are encoded by an 8-qubit variational circuit. Seventeen predictors are compared in seventeen ` +
+      `experiments, and every quantum component faces a matched classical control.`),
     P(`Genetic scores raise the AUC of clinical screening from ${f3(auc("M3c_clinical"))} to ${f3(auc("M3_additive"))} ` +
       `and nearly double the share of lean diabetes cases caught in the top 20% of risk (IDRS ${pc(lean("M0_idrs"))}, ` +
       `genetic model ${pc(lean("M3_additive"))}); the result holds in ${nAucWin} of ${nSet} alternative simulator ` +
       `settings and in all five South Asian populations of 1000 Genomes. The interaction search recovers 70–84% of ` +
-      `planted gene pairs, against 40–48% for PLINK's BOOST. The quantum components work as designed but show no ` +
-      `significant advantage; error mitigation recovers most of the quality lost to hardware noise. The work is ` +
+      `planted gene pairs, against 40–48% for PLINK's BOOST. On an outcome made only of gene–gene interaction, the ` +
+      `entangled circuit reaches AUC ${f3(a14("vqc"))} against ${f3(a14("noent"))} without entanglement, and 12-qubit ` +
+      `QAOA circuits make the full 48-of-200 pair selection as well as simulated annealing; no quantum speed-up is ` +
+      `claimed, and error mitigation recovers most of the quality lost to hardware noise. The work is ` +
       `delivered as a tested application that reads consumer DNA files, fills in missing variants by LD imputation, ` +
       `explains each prediction and produces a PDF report.`),
     P(`**Keywords:** type 2 diabetes, South Asians, polygenic risk score, gene–gene interaction, QUBO, QAOA, variational ` +
@@ -363,145 +393,130 @@ function acknowledgementPage() {
   ];
 }
 
-const tocPara = (text, page, level) => new Paragraph({
-  indent: { left: level === 2 ? 440 : 0 }, spacing: { after: level === 2 ? 40 : 80, before: level === 1 ? 80 : 0 },
-  tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_W, leader: LeaderType.DOT }],
-  children: [new TextRun({ text, size: 22, bold: level === 1 || undefined }), new TextRun({ text: `\t${page}`, size: 22 })],
-});
+// The three contents pages are live Word fields: Update Table rebuilds them from the headings and the captions. The
+// entries stored here are what a reader sees before that, with a real tab before each right-aligned page number.
+class Contents extends TableOfContents {
+  getTabStopsForLevel() {
+    return [{ type: TabStopType.RIGHT, position: CONTENT_W, leader: LeaderType.DOT }];
+  }
+}
 function contentsPages() {
-  const entries = S.toc.filter((e) => e.text !== "TABLE OF CONTENTS");
   return [
-    FRONT("TABLE OF CONTENTS"),
-    ...entries.map((e) => tocPara(e.text, pageOf(e.key), e.level === 0 ? 1 : e.level)),
+    new Paragraph({ style: "ContentsTitle", pageBreakBefore: true, children: [new TextRun("TABLE OF CONTENTS")] }),
+    new Contents("Table of Contents", { hyperlink: true, headingStyleRange: "1-2", hideTabAndPageNumbersInWebView: true,
+      beginDirty: false,
+      cachedEntries: S.toc.map((e) => ({ title: e.text, level: e.level === 2 ? 2 : 1, page: pageOf(e.key), href: e.id })) }),
   ];
 }
 function listPage(title, items, kind) {
   return [
     FRONT(title),
-    table([`${kind} No.`, "Caption", "Page No."], items.map((it) => [`${kind} ${it.n}`, it.text.replace(/`/g, ""),
-      pageOf(`${kind.toLowerCase()}:${it.n}`)]), [1300, 6886, 1200],
-    { aligns: [AlignmentType.LEFT, AlignmentType.LEFT, AlignmentType.CENTER] }),
+    new Contents(title, { hyperlink: true, captionLabelIncludingNumbers: kind, hideTabAndPageNumbersInWebView: true,
+      beginDirty: false,
+      cachedEntries: items.map((it) => ({ title: `${kind} ${it.n}: ${plain(it.text)}`, level: 3,
+        page: pageOf(`${kind.toLowerCase()}:${it.n}`), href: it.id })) }),
   ];
 }
 function abbreviationsPage() {
   return [
     FRONT("LIST OF ABBREVIATIONS"),
-    table(null, ABBREVIATIONS.map(([a, b]) => [`**${a}**`, b]), [2000, 7386], { borderless: true, size: 22, pad: 25 }),
+    table(null, ABBREVIATIONS.map(([a, b]) => [a, b]), [2000, 7386], { borderless: true, size: 22, pad: 25 }),
   ];
 }
 
 // =====================================================================
-// CHAPTER 1: INTRODUCTION
+// CHAPTER 1: INTRODUCTION (the problem only; the solution starts in Chapter 3)
 // =====================================================================
 function chapter1() {
   return [
     H1("CHAPTER 1: INTRODUCTION"),
-    H2("1.1 Project Overview"),
-    P(`QGenomix is a quantum-classical hybrid framework for polygenic risk prediction, focused on early-onset type 2 ` +
-      `diabetes (T2D) in lean South Asians. It combines real genotypes, published polygenic scores and a clinical ` +
-      `questionnaire, searches for interacting gene pairs between two diabetes mechanisms, selects a non-redundant set ` +
-      `of pairs with classical and quantum optimisation, and encodes them with a variational quantum circuit. Every ` +
-      `quantum step is compared against a classical control, so the project measures what quantum computing ` +
-      `contributes instead of assuming it.`),
-    P(`The result is delivered as a working risk-report application. It reads a consumer DNA file (23andMe or ` +
-      `AncestryDNA), fills in the variants the file is missing, and reports the person's risk with its biological ` +
-      `mechanisms, the screening flags that the BMI rule and the IDRS would miss, lifestyle what-ifs, and a ` +
-      `downloadable PDF. The full research pipeline, from raw 1000 Genomes data to every figure in this report, is ` +
-      `reproducible from one configuration file.`),
-    H2("1.2 Need Analysis"),
-    P(`India has an estimated 101 million adults with diabetes and 136 million with prediabetes ${cite("anjana")}. ` +
-      `South Asians develop T2D at younger ages and lower BMI than Europeans, a pattern often called the lean or ` +
-      `"thin-fat" phenotype ${cite("narayan")}. Two consequences follow. BMI-based screening misses lean people at high ` +
-      `risk, and the IDRS ${cite("mohan")}, which scores age, waist, physical activity and family history, gives young, ` +
-      `slim people low scores by design and cannot see inherited risk.`),
-    P(`At the same time, genetic data has become cheap: consumer genotyping files are widely available, and a ` +
-      `multi-ancestry polygenic score trained for South Asians, D-PRISM ${cite("huerta")}, and mechanism-specific ` +
-      `scores for T2D ${cite("loesch")} have been published. What is missing is a careful study of what these scores ` +
-      `add to Indian screening, whether the mechanisms interact, and a tool that turns a partial consumer DNA file into ` +
-      `an honest, explained risk report.`),
-    H2("1.3 Research Gaps"),
+    H2("1.1 The Scale of the Problem"),
+    P(`India has more people with diabetes than any other country. The ICMR-INDIAB study tested 113,043 people across ` +
+      `the country and found 101 million Indians with diabetes, 11.4% of adults, and another 136 million with ` +
+      `prediabetes, 15.3% ${cite("anjana")}. The Tribune carried the finding on 10 June 2023 ${cite("tribune")}. Taken ` +
+      `together, more than one Indian adult in four either has the disease or is on the way to it.`),
+    P(`The global picture is just as stark. The NCD Risk Factor Collaboration pooled 1,108 population studies in The ` +
+      `Lancet and counted 828 million adults with diabetes in the world in 2022. More than a quarter of them, 212 ` +
+      `million, lived in India ${cite("ncdrisc")}, and ThePrint reported on 14 November 2024 that 62% of them were not ` +
+      `on medication ${cite("theprint")}. The International Diabetes Federation, counting adults aged 20 to 79, ` +
+      `estimates 89.8 million Indians with diabetes in 2024 and 156.7 million by 2050, and says that 43% of those ` +
+      `affected do not know they have it ${cite("idf")}.`),
+    P(`These counts differ because the studies use different age ranges, blood tests and statistical methods, but ` +
+      `they agree on the message: the disease is vast, it is growing, and much of it is hidden. ${TB("burden")} ` +
+      `gathers the numbers and their sources.`),
+    tableCaption("Diabetes in India in numbers", "burden"),
+    table(["Measure", "Number", "Source"], [
+      ["Indians with diabetes", "101 million", `ICMR-INDIAB ${cite("anjana")}; The Tribune, 10 June 2023 ${cite("tribune")}`],
+      ["Indians with prediabetes", "136 million", `ICMR-INDIAB ${cite("anjana")}`],
+      ["Adults with diabetes worldwide, 2022, more than 1 in 4 of them in India", "828 million", `The Lancet ${cite("ncdrisc")}; ThePrint, 14 November 2024 ${cite("theprint")}`],
+      ["Indians with diabetes not on medication", "62%", `ThePrint, 14 November 2024 ${cite("theprint")}`],
+      ["Indian adults who do not know they have diabetes", "43%", `IDF Diabetes Atlas, 2025 ${cite("idf")}`],
+      ["Indian adults with diabetes expected by 2050", "156.7 million", `IDF Diabetes Atlas, 2025 ${cite("idf")}`],
+    ], [4200, 1700, 3486], { shadeFirst: true }),
+
+    H2("1.2 Diabetes Without Obesity"),
+    P(`The usual picture of a person with type 2 diabetes (T2D) is someone overweight. In South Asia that picture leaves ` +
+      `out a great many people. A study of 1.47 million people in England asked which body-mass index (BMI) carries the ` +
+      `same risk of T2D as a BMI of 30 in White people ${cite("caleyachetty")}. ${F("bmi")} shows the answer. For Black, ` +
+      `Chinese and Arab people the equal-risk BMI lies between 26 and 28. For South Asians it is 23.9. A South Asian ` +
+      `whom most charts call normal weight already carries the diabetes risk of a White person called obese.`),
+    ...figure("fig_intro_bmi.png", `BMI at which each group has the T2D risk of a White person at BMI 30 ${cite("caleyachetty")}`, "bmi"),
+    P(`The same gap appears when people of normal weight are compared directly. ${F("lean_world")} sets adults in ` +
+      `Chennai beside White adults in the United States ${cite("gujral")}. Among normal-weight men, 23.5% in Chennai ` +
+      `have diabetes against 6.1% in the United States; among normal-weight women the figures are 13.6% and 2.8%. A ` +
+      `normal-weight Indian man is almost four times as likely to have diabetes as his American counterpart, and a ` +
+      `normal-weight Indian woman almost five times.`),
+    ...figure("fig_intro_lean.png", `Diabetes among normal-weight adults in Chennai and the United States ${cite("gujral")}`, "lean_world"),
+    P(`The disease also arrives earlier. Among people with young-onset diabetes, 24–39% of Asian Indians had a normal ` +
+      `BMI against 9.3% of White Europeans (normal meant below 23 for Indians and below 25 for Europeans), and the ` +
+      `Indians had weaker insulin-producing β-cells ${cite("siddiqui")}. This pattern of early disease at low body ` +
+      `weight is often called the lean or thin-fat phenotype ${cite("narayan")}.`),
+
+    H2("1.3 Why Current Screening Misses Them"),
+    P(`Two tools decide who gets tested. The first is body weight: a rule based on BMI cannot flag a lean person, by ` +
+      `definition. The second is the Indian Diabetes Risk Score (IDRS), four questions on age, waist, physical activity ` +
+      `and family history ${cite("mohan")}. At its usual cut-off of 60 it finds 72.5% of undiagnosed diabetes and wrongly ` +
+      `flags about 40% of people without it. A young, slim person earns few points on it by design, and family history ` +
+      `is only a rough shadow of inherited risk.`),
+    P(`The result is a blind spot. The people most likely to be told they are safe are the people described above: ` +
+      `young, slim and South Asian. Someone who is not flagged is not tested.`),
+
+    H2("1.4 The Inherited Risk Nobody Measures"),
+    P(`Much of this risk is written in the genome. Among British South Asians, people with high genetic risk on both ` +
+      `insulin deficiency and lipodystrophy (a fat-distribution mechanism) were diagnosed 8.2 years earlier, at a BMI 3 ` +
+      `kg/m² lower ${cite("hodgson")}. Such a person looks healthy on every measure used in screening today. Four gaps ` +
+      `keep this information out of screening:`, { keepNext: true }),
     ...bullets([
-      "Polygenic risk scores are additive; whether T2D mechanisms interact (for example β-cell × lipodystrophy) has not been tested in South Asians.",
-      "Exhaustive pairwise interaction search has low power and returns many redundant \"shadow\" pairs; choosing a small, non-redundant set of pairs is a combinatorial problem.",
-      "Quantum machine-learning studies in genomics rarely include matched classical controls or an analysis of hardware noise, so their claims are hard to judge.",
-      "India's screening questionnaire ignores genetics, and no study has quantified what genetics adds for lean people in particular.",
-      "Consumer DNA files cover only about half of the variants in modern polygenic scores; filling the gaps with the population average biases every score towards the middle.",
+      `South Asians are missing from the data: they were only 2% of the 2.5 million people in the latest multi-ancestry genetic study ${cite("hodgson")}, so most risk scores were not built for them.`,
+      "Polygenic scores add up the effects of variants one at a time. Whether diabetes mechanisms amplify each other in South Asians is not known.",
+      "We found no study that measures what genetics adds to India's own screening questionnaire for lean people in particular.",
+      "Consumer DNA tests measure only about half of the variants in modern scores, so people who hold such a file still cannot get a reliable score from it.",
     ]),
-    H2("1.4 Problem Definition and Scope"),
-    P(`**Problem:** given genotypes and clinical answers for South Asian adults, (a) predict T2D risk more accurately ` +
-      `than the IDRS and a BMI rule, with particular attention to lean people; (b) recover truly interacting gene pairs ` +
-      `between diabetes mechanisms while controlling false discoveries; and (c) measure, against classical controls, ` +
-      `whether quantum optimisation and quantum feature encoding help.`),
-    P(`**Scope:** the project uses the 2,504 real genomes of 1000 Genomes phase 3 (GRCh37), the D-PRISM score ` +
-      `(1.34 million variants), five mechanism scores (62 SNPs) and 1,263 cross-mechanism SNP pairs. Outcomes are ` +
-      `simulated with a liability-threshold model calibrated to Indian prevalence. Quantum circuits run on exact ` +
-      `simulators and on a noise model of an IBM processor; a run on real IBM hardware is planned for the final ` +
-      `evaluation. The application is a research prototype and not a medical device.`),
-    H2("1.5 Assumptions and Constraints"),
+
+    H2("1.5 Why It Is Worth Solving"),
+    P(`Type 2 diabetes is not fate. In the Indian Diabetes Prevention Programme, lifestyle change lowered progression to ` +
+      `diabetes by about 28% in people with impaired glucose tolerance ${cite("ramachandran")}, and The Tribune quoted the ` +
+      `head of the ICMR saying that 60% of diabetes is reversible ${cite("tribune")}. But prevention only reaches people ` +
+      `who know they need it. A lean person diagnosed eight years early also lives with the disease eight years longer, ` +
+      `through their most productive years, and India already spends more than USD 9.8 billion a year on diabetes ` +
+      `${cite("idf")}. Each person found before the disease begins is someone who can act while action is still cheap ` +
+      `and effective.`),
+
+    H2("1.6 Problem Definition and Scope"),
+    P("The problem can now be stated precisely: how can lean South Asians at high risk of T2D be found early, before " +
+      "current screening would notice them, from information that is cheap to collect? It breaks into three questions:",
+    { keepNext: true }),
     ...bullets([
-      "Disease outcomes are simulated with known ground truth; genotypes, allele frequencies, linkage and polygenic weights are real.",
-      "Synthetic cohorts are mosaics of real South Asian haplotypes in one-megabase blocks, which keeps local linkage but removes population substructure.",
-      "Genotype files are on genome build GRCh37 and the forward strand, as 23andMe and AncestryDNA files are; other builds are rejected.",
-      "Quantum hardware access is limited to IBM's free Open Plan (10 QPU minutes per 28 days), so most quantum results come from exact and noisy simulators.",
-      "All computation runs on a 16-core laptop with 14 GB of memory; large steps are chunked to fit.",
+      "How much does genetic information add to the clinical screening used in India, above all for lean people?",
+      "Do genetic variants from different diabetes mechanisms interact, or do they only add up?",
+      "Can a partial consumer DNA file give a person a reliable risk report that they can understand?",
     ]),
-    H2("1.6 Standards"),
-    ...bullets([
-      "Genomic QC follows PLINK 2 conventions: minor-allele frequency ≥ 1%, genotype missingness ≤ 5%, Hardy–Weinberg p > 10^{−6} in South Asians.",
-      `Polygenic weights come from harmonised GRCh37 scoring files of the PGS Catalog ${cite("lambert")}; the IDRS is scored exactly as published ${cite("mohan")}.`,
-      `Prediction models are reported with discrimination and calibration on held-out data, following the TRIPOD recommendations ${cite("tripod")}; a model card documents intended use, data, performance, fairness and limits.`,
-      "Code follows PEP 8 (checked by ruff), is covered by automated tests run on every push, and exposes a REST API with an OpenAPI description.",
-      "Every result records the hash of the configuration that produced it; fixed seeds make runs repeatable.",
-    ]),
-    H2("1.7 Approved Objectives"),
-    P("The objectives approved at the mid-semester evaluation were:", { after: 60, keepNext: true }),
-    ...numbered([
-      "Build a complete genomic data pipeline: QC, SNP selection, pair ranking and label generation.",
-      "Design and implement a variational quantum circuit encoder that produces interaction features for SNP pairs.",
-      "Train classical baselines (LR, RF, XGBoost, SVM) and compute a PRS as a clinical reference.",
-      "Build a hybrid stacking ensemble integrating quantum features, PRS and classical predictions.",
-      "Implement an adaptive SHAP-guided loop that refines the gene-pair selection.",
-      "Benchmark all models on a held-out test set using AUC-ROC, F1 and EDR@K, with DeLong and McNemar tests.",
-    ]),
-    P("Section 6.1 reports the status of each objective.", { before: 60 }),
-    H2("1.8 Methodology"),
-    P(`QGenomix follows an eight-stage pipeline: data preparation, synthetic cohort and outcome simulation, ` +
-      `interaction search, pair selection (QUBO solved classically and by QAOA), quantum pair encoding, a model zoo of ` +
-      `17 predictors, evaluation in fifteen experiments, and the risk-report application. The investigative technique ` +
-      `is comparative: every model sees identical data splits and is scored with identical metrics, and every quantum ` +
-      `component has a classical twin. Because outcomes are simulated, the planted interactions are known, so ` +
-      `discovery can be scored exactly. Chapter 3 describes the method and Chapter 5 the results.`),
-    H2("1.9 Project Outcomes and Deliverables"),
-    ...bullets([
-      "A reproducible data pipeline on real 1000 Genomes data, with the D-PRISM score, mechanism scores and a South Asian haplotype library.",
-      "An outcome simulator with clinical factors and the IDRS, validated against the real population (E0).",
-      "An interaction search with QUBO selection and QAOA, including error mitigation and a script for real IBM hardware.",
-      "An 8-qubit variational pair encoder with its own exact simulator, and its classical controls.",
-      "A model zoo of 17 predictors and fifteen experiments (E0–E13), with statistical tests.",
-      "A risk-report application: dashboard, REST API, PDF report, LD imputation for consumer DNA files and a Docker image.",
-      `A test suite of ${nTests} automated tests with continuous integration, a model card, and this report.`,
-    ]),
-    H2("1.10 Novelty of Work"),
-    ...bullets([
-      "Tests for interaction between published T2D mechanism scores on real South Asian haplotypes, and measures the value of genetics for lean people against India's own screening questionnaire.",
-      "Poses gene-pair selection as a QUBO with an SNP-overlap redundancy term and solves it with a constraint-preserving QAOA started from a Dicke state, then measures it under realistic noise with error mitigation.",
-      "Gives every quantum component a matched classical control (annealing, the same circuit without entanglement, and a classical twin of similar size).",
-      "Introduces two task-specific metrics: EDR@K for interaction discovery and lean-case capture for screening.",
-      "Builds an LD imputation panel from South Asian reference genomes so that partial consumer DNA files give reliable reports.",
-    ]),
-    H2("1.11 Changes Since the Mid-Semester Evaluation"),
-    P(`The mid-semester design was generic. ${TB("changes")} lists what changed and why; each change gives the ` +
-      "project a measurable clinical outcome and a verifiable ground truth."),
-    tableCaption("Changes from the mid-semester plan", "changes"),
-    table(["Aspect", "Mid-semester plan", "Implemented", "Reason"], [
-      ["Clinical focus", "T2D in general", "Early-onset T2D in lean South Asians, compared with IDRS screening", "A specific, unmet need in India gives a measurable outcome"],
-      ["Genotypes", "2,504 × 1,000 SNP matrix", "Full 1000 Genomes data; 10,000 synthetic South Asians built from real haplotypes", "Real allele frequencies and linkage; enough people to detect interactions"],
-      ["Risk scores", "Literature GWAS betas (pending)", "D-PRISM South Asian PRS (1.34M variants) and 5 mechanism scores from the PGS Catalog", "Published, ancestry-matched weights"],
-      ["Outcomes", "Labels with 20 hidden pairs", "Liability model: genetics, β-cell × lipodystrophy interaction, 10 planted pairs, age, sex, BMI, waist, activity, family history", "Known truth makes every discovery claim checkable"],
-      ["Pair selection", "Adaptive SHAP loop", "Score test on 1,263 cross-mechanism pairs, then QUBO (annealing and QAOA)", `SHAP ranking found ${pc(edrShap)} of planted pairs, the score test ${pc(edrScore)} (E1)`],
-      ["Quantum", "VQC encoder, 125 circuits", "QAOA with error mitigation; 12-circuit VQC with no-entanglement and classical-twin controls", "Controls isolate what the quantum part contributes"],
-      ["Output", "Benchmark table", "Benchmark, web app with PDF report, REST API, Docker image", "Shows how the result reaches a clinician or a user"],
-    ], [1450, 1900, 3336, 2700], { shadeFirst: true }),
+    P("The work covers type 2 diabetes in adults of South Asian ancestry. It is a research study with a working " +
+      "prototype, not a medical device, and it does not diagnose anyone.", { before: 60 }),
+
+    H2("1.7 Organisation of the Report"),
+    P("Chapter 2 surveys the literature and sets out the requirements. Chapter 3 presents the proposed solution, " +
+      "Chapter 4 its design and working prototype, Chapter 5 the experimental results, and Chapter 6 the conclusions."),
   ];
 }
 
@@ -530,45 +545,47 @@ function chapter2() {
       `${cite("perez", "havlicek")}. On today's noisy processors, error-mitigation methods such as zero-noise ` +
       `extrapolation and readout correction reduce the bias of measured results ${cite("temme", "bravyi")}.`),
     H3("2.1.2 Existing Systems and Solutions"),
-    P(`PLINK ${cite("plink")} is the standard toolset for genotype QC and polygenic scoring, and BOOST ${cite("wan")} ` +
-      `made exhaustive pairwise interaction screening fast. Polygenic scores are distributed through the PGS Catalog. ` +
-      `Clinical screening in India uses the IDRS questionnaire. Missing genotypes are normally filled by imputation ` +
-      `servers that use reference haplotypes ${cite("marchini", "browning")}. Quantum software frameworks (Qiskit, ` +
-      `PennyLane) make circuits easy to build and simulate, but no existing system joins these pieces into one ` +
-      `benchmarked pipeline for South Asian diabetes screening.`),
+    P(`PLINK ${cite("plink")} is the standard toolset for genotype quality control and polygenic scoring, and BOOST ` +
+      `${cite("wan")} made exhaustive pairwise interaction screening fast. Polygenic scores are distributed through the ` +
+      `PGS Catalog ${cite("lambert")}. Clinical screening in India uses the IDRS questionnaire ${cite("mohan")}. Missing ` +
+      `genotypes are normally filled by imputation servers that use reference haplotypes ${cite("marchini", "browning")}. ` +
+      `Quantum software frameworks (Qiskit, PennyLane) make circuits easy to build and simulate, but no existing system ` +
+      `joins these pieces into one benchmarked pipeline for South Asian diabetes screening.`),
     H3("2.1.3 Literature Survey Table"),
+    P(`${TB("lit")} summarises the studies closest to this work, in the order of the problem: who is at risk, how ` +
+      `genetics predicts it, how interactions are found, and what quantum and supporting methods offer.`),
     tableCaption("Literature survey", "lit"),
-    table(["S.No", "Paper", "Tools / Tech", "Key Finding", "Limitation", "Citation"], [
-      ["1", "Khera et al., 2018", "Genome-wide PRS, UK Biobank", "Genome-wide PRS find a few percent of people with risk equal to monogenic mutations, including for T2D", "Mostly European ancestry; additive only", cite("khera")],
-      ["2", "Udler et al., 2018", "Soft clustering of T2D loci", "T2D variants split into five mechanism clusters (two β-cell, three insulin resistance)", "European-centred; no interaction tested", cite("udler")],
-      ["3", "Ruan et al., 2022", "PRS-CSx", "Combining GWAS from several ancestries improves PRS accuracy in non-European groups", "Additive; needs ancestry-matched tuning", cite("ruan")],
-      ["4", "Mahajan et al., 2022", "Multi-ancestry T2D GWAS", "Diverse populations increase locus discovery and improve PRS transfer across ancestries", "South Asian samples still a minority", cite("mahajan")],
-      ["5", "Mohan et al., 2005", "Indian Diabetes Risk Score", "Four questions (age, waist, activity, family history) screen for undiagnosed diabetes in India", "No genetic information; scores young, slim people low", cite("mohan")],
-      ["6", "Cordell, 2009", "Review of interaction methods", "Regression, exhaustive and data-mining approaches to gene–gene interaction", "Low power and heavy multiple testing at genome scale", cite("cordell")],
-      ["7", "Wan et al., 2010", "BOOST", "Boolean genotype encoding makes exhaustive pairwise screening fast", "Approximate first stage; redundant pairs in LD not handled", cite("wan")],
-      ["8", "Hadfield et al., 2019", "QAOA, constraint-preserving mixers", "Mixers such as XY keep the search inside the feasible set", "Benefit on noisy hardware not established", cite("hadfield")],
-      ["9", "Havlíček et al., 2019", "Quantum feature maps", "Quantum kernels and variational classifiers run on superconducting hardware", "Small synthetic data; no advantage shown on real data", cite("havlicek")],
-      ["10", "Temme et al., 2017", "Zero-noise extrapolation", "Extrapolating from amplified noise reduces the bias of noisy results", "More sampling; assumes noise scales predictably", cite("temme")],
-      ["11", "Marchini and Howie, 2010", "Genotype imputation", "Untyped variants can be predicted from reference haplotypes using LD", "Accuracy depends on panel size and ancestry", cite("marchini")],
-      ["12", "Lundberg and Lee, 2017", "SHAP", "Consistent, theoretically grounded attributions for any model", "Post hoc; attributions are not causal", cite("lundberg")],
-    ], [450, 1900, 1500, 2500, 2236, 800], { aligns: [AlignmentType.CENTER, AlignmentType.LEFT, AlignmentType.LEFT,
-      AlignmentType.LEFT, AlignmentType.LEFT, AlignmentType.CENTER], size: 19 }),
+    table(["Sr.", "Ref.", "Method", "Highlights", "Limitation"], [
+      ["1", refYear("caleyachetty"), "Cohort of 1.47 million people in England", "BMI 23.9 in South Asians carries the T2D risk of BMI 30 in White people", "English data; no genetic information"],
+      ["2", refYear("gujral"), "CARRS and NHANES surveys compared", "Diabetes in normal-weight men: 23.5% in Chennai, 6.1% in the United States", "Cross-sectional; cannot say who will develop diabetes"],
+      ["3", refYear("mohan"), "Indian Diabetes Risk Score", "Four questions find 72.5% of undiagnosed diabetes at a cut-off of 60", "No genetic information; scores young, slim people low"],
+      ["4", refYear("hodgson"), "Genetic study of British South Asians", "High risk on two mechanisms brings diagnosis 8.2 years earlier at a lower BMI", "Association study; no screening tool built"],
+      ["5", refYear("khera"), "Genome-wide PRS, UK Biobank", "A few percent of people have risk equal to monogenic mutations, including for T2D", "Mostly European ancestry; additive only"],
+      ["6", refYear("udler"), "Soft clustering of T2D loci", "T2D variants split into five mechanism clusters (two β-cell, three insulin resistance)", "European-centred; no interaction tested"],
+      ["7", refYear("ruan"), "PRS-CSx", "Combining studies of several ancestries improves PRS accuracy in non-European groups", "Additive; needs ancestry-matched tuning"],
+      ["8", refYear("mahajan"), "Multi-ancestry T2D association study", "Diverse populations increase discovery and improve PRS transfer", "South Asian samples still a minority"],
+      ["9", refYear("cordell"), "Review of interaction methods", "Compares regression, exhaustive and data-mining approaches to gene–gene interaction", "Low power and heavy multiple testing at genome scale"],
+      ["10", refYear("wan"), "BOOST", "Boolean genotype encoding makes exhaustive pairwise screening fast", "Approximate first stage; redundant pairs not handled"],
+      ["11", refYear("hadfield"), "QAOA, constraint-preserving mixers", "Mixers such as XY keep the search inside the valid set", "Benefit on noisy hardware not established"],
+      ["12", refYear("havlicek"), "Quantum feature maps", "Quantum kernels and variational classifiers run on real hardware", "Small synthetic data; no advantage on real data"],
+      ["13", refYear("temme"), "Zero-noise extrapolation", "Extrapolating from amplified noise reduces the bias of noisy results", "More sampling; assumes noise scales predictably"],
+      ["14", refYear("marchini"), "Genotype imputation", "Unmeasured variants can be predicted from reference haplotypes using LD", "Accuracy depends on panel size and ancestry"],
+      ["15", refYear("lundberg"), "SHAP", "Consistent, well-founded attributions for any model", "Post hoc; attributions are not causal"],
+    ], [520, 1300, 2150, 3080, 2336], { aligns: [AlignmentType.CENTER, AlignmentType.LEFT, AlignmentType.LEFT,
+      AlignmentType.LEFT, AlignmentType.LEFT], size: 20 }),
+    P(`Reading down the last column of ${TB("lit")} shows the common weakness. The epidemiology (rows 1 to 4) proves ` +
+      `the problem but offers no screening tool. The genetic studies (rows 5 to 8) are additive and mostly European. ` +
+      `The interaction methods (rows 9 and 10) struggle with power and redundancy. The quantum studies (rows 11 to 13) ` +
+      `leave open whether the methods help on real problems under real noise.`, { before: 160 }),
     H3("2.1.4 Problem Identified"),
     P("Existing work treats polygenic risk as additive, studies interactions without handling redundancy, reports " +
       "quantum methods without classical controls or noise, and offers no way to turn a partial consumer DNA file into " +
       "a reliable report for South Asians. QGenomix addresses all four in one benchmarked, reproducible system."),
     H3("2.1.5 Survey of Tools and Technologies Used"),
-    ...bullets([
-      "**PLINK 2 and PLINK 1.9:** genotype QC, PCA, polygenic scoring and the BOOST interaction baseline.",
-      "**NumPy, pandas, SciPy, statsmodels:** data handling and statistics, including the vectorised score test.",
-      "**scikit-learn and XGBoost:** classical models, calibration and cross-validation.",
-      "**PyTorch and PennyLane:** training the variational circuits; PennyLane also checks our own exact simulator.",
-      "**Qiskit, Qiskit Aer and Qiskit IBM Runtime:** QAOA circuits, noisy simulation and access to IBM hardware.",
-      "**dwave-samplers:** simulated annealing for the QUBO.",
-      "**SHAP:** per-person explanations of the model.",
-      "**FastAPI, Streamlit, fpdf2 and Docker:** the REST API, the dashboard, the PDF report and deployment.",
-      "**pytest, ruff and GitHub Actions:** testing, style checks and continuous integration.",
-    ]),
+    P(`The project builds on established open-source tools: PLINK for genomic data, the scientific Python stack for ` +
+      `statistics, scikit-learn and XGBoost for classical models, PyTorch, PennyLane and Qiskit for quantum circuits, ` +
+      `SHAP for explanations, and FastAPI, Streamlit and Docker for the application. ${TB("tools")} in Chapter 3 lists ` +
+      `each with its version and purpose.`),
     H2("2.2 Software Requirement Specification"),
     H3("2.2.1 Purpose, Audience and Scope"),
     P("This specification defines what the QGenomix research pipeline and application must do. Its readers are the " +
@@ -580,6 +597,7 @@ function chapter2() {
       "figures, and an application that turns one person's DNA file and questionnaire answers into a report. Both " +
       "share one Python package and one configuration file."),
     H3("2.2.3 Functional Requirements"),
+    P(`${TB("fr")} lists the functional requirements and the module that implements each one.`),
     tableCaption("Functional requirements and where they are implemented", "fr"),
     table(["ID", "Requirement", "Implemented in"], [
       ["FR1", "Read 23andMe and AncestryDNA files on GRCh37; reject other builds and malformed files", "app.parser, app.service"],
@@ -591,21 +609,24 @@ function chapter2() {
       ["FR7", "Show lifestyle what-ifs with genes, age and family history fixed", "app.service, app.dashboard"],
       ["FR8", "Provide the report on screen, as JSON and as a PDF", "app.dashboard, app.api, app.pdf"],
       ["FR9", "Rebuild every result from raw data with one command per step", "Makefile, scripts/"],
-    ], [700, 5000, 3686], { shadeFirst: true }),
+    ], [700, 5700, 2986], { shadeFirst: true }),
     H3("2.2.4 External Interface Requirements"),
     ...bullets([
-      "**User interfaces:** a Streamlit dashboard (report, clinician view, research results, model card) and a downloadable PDF.",
-      "**Software interfaces:** a REST API (`POST /v1/profile`, `POST /v1/report.pdf`) with OpenAPI documentation; PLINK binaries; Qiskit IBM Runtime for hardware runs.",
-      "**Hardware interfaces:** a laptop with 16 GB of memory runs everything; IBM quantum processors are reached through the cloud.",
+      "User interfaces: a Streamlit dashboard (report, clinician view, research results, model card) and a downloadable PDF.",
+      "Software interfaces: a REST API (`POST /v1/profile`, `POST /v1/report.pdf`) with OpenAPI documentation; PLINK binaries; Qiskit IBM Runtime for hardware runs.",
+      "Hardware interfaces: a laptop with 16 GB of memory runs everything; IBM quantum processors are reached through the cloud.",
     ]),
     H3("2.2.5 Non-functional Requirements"),
     ...bullets([
-      "**Performance:** a report from a 46 MB genome file in about 10 seconds; what-if updates in under a second; the full research pipeline in about three hours on 16 cores.",
-      "**Safety:** every report states that it is a research prototype trained on simulated outcomes and is not a diagnosis.",
-      "**Security and privacy:** uploaded files are processed in memory and never stored or logged; API keys are never kept in the repository; the container runs as a non-root user.",
-      `**Reliability and portability:** ${nTests} automated tests on every push; one Docker image runs the dashboard and the API on any operating system.`,
+      "Performance: a report from a 46 MB genome file in about 10 seconds; what-if updates in under a second; the full research pipeline in about three hours on 16 cores.",
+      "Safety: every report states that it is a research prototype trained on simulated outcomes and is not a diagnosis.",
+      "Security and privacy: uploaded files are processed in memory and never stored or logged; API keys are never kept in the repository; the container runs as a non-root user.",
+      `Reliability and portability: ${nTests} automated tests on every push; one Docker image runs the dashboard and the API on any operating system.`,
     ]),
     H2("2.3 Cost Analysis"),
+    P(`The project runs entirely on public data and open-source software, so its direct cost is zero (${TB("cost")}). ` +
+      `The real costs are the team's time and the 10 free quantum minutes a month, which limit how much can run on ` +
+      `hardware.`),
     tableCaption("Cost analysis", "cost"),
     table(["Item", "Source", "Cost"], [
       ["Genotype data", "1000 Genomes Project, public", "Free"],
@@ -615,9 +636,12 @@ function chapter2() {
       ["Quantum hardware", "IBM Quantum Open Plan, 10 QPU minutes per 28 days", "Free"],
       ["Code hosting and CI", "GitHub", "Free"],
       ["Public demo hosting", "Free tier of a container host", "Free"],
-      ["**Total**", "", "**₹0**"],
-    ], [3000, 3886, 2500], { shadeFirst: true }),
-    H2("2.4 Risk Analysis", { pageBreak: true }),
+      ["Total", "", "₹0"],
+    ], [3000, 4186, 2200], { shadeFirst: true }),
+    H2("2.4 Risk Analysis"),
+    P(`${TB("risk")} lists the main project risks. The largest is that outcomes are simulated, which is why the ` +
+      `conclusions are tested under thirteen simulator settings and why validation on real patients heads the future ` +
+      `work.`),
     tableCaption("Risk analysis", "risk"),
     table(["Risk", "Likelihood", "Impact", "Mitigation"], [
       ["Simulated outcomes do not match real disease biology", "High", "High", "Real genotypes and published weights; robustness across 13 simulator settings (E12); validation on a real Indian cohort planned"],
@@ -627,49 +651,128 @@ function chapter2() {
       ["Memory limits with 84 million variants", "Medium", "Medium", "Extract only target variants; chunked processing with memory caps"],
       ["Results differ between machines", "Low", "Medium", "Fixed seeds, configuration hash, tightened solver tolerance, continuous integration"],
       ["The app is mistaken for a diagnostic tool", "Low", "High", "Disclaimer on every report; model card; research-prototype labelling"],
-    ], [2600, 1150, 950, 4686], { aligns: [AlignmentType.LEFT, AlignmentType.CENTER, AlignmentType.CENTER, AlignmentType.LEFT] }),
+    ], [2350, 1300, 1050, 4686], { aligns: [AlignmentType.LEFT, AlignmentType.CENTER, AlignmentType.CENTER, AlignmentType.LEFT] }),
   ];
 }
 
 // =====================================================================
-// CHAPTER 3: METHODOLOGY ADOPTED
+// CHAPTER 3: METHODOLOGY ADOPTED (the solution starts here)
 // =====================================================================
 function chapter3() {
   return [
     H1("CHAPTER 3: METHODOLOGY ADOPTED"),
-    H2("3.1 Investigative Techniques"),
-    P("QGenomix uses four complementary techniques. **Comparative:** all 17 predictors are trained on identical splits " +
-      "and scored with identical metrics. **Simulation with ground truth:** outcomes are generated from a known model " +
-      "with planted interactions, so discovery and calibration can be checked exactly. **Ablation:** each quantum " +
-      "component is compared with the same component without its quantum ingredient (annealing instead of QAOA, the " +
-      "circuit without entanglement, a classical network of similar size). **External checks:** models trained on " +
-      "synthetic people are tested on real genomes of five ancestries, on each South Asian population, and under " +
-      "thirteen alternative simulator settings."),
-    H2("3.2 Proposed Solution"),
-    P(`The solution is an eight-stage pipeline (${F("arch")} in Chapter 4):`, { after: 60, keepNext: true }),
-    ...bullets([
-      "**S1 Data preparation:** QC of 1000 Genomes, principal components, D-PRISM and mechanism scores, a haplotype library and an LD panel.",
-      "**S2 Cohort and simulator:** synthetic South Asians as haplotype mosaics, with clinical factors, the IDRS and simulated T2D.",
-      "**S3 Interaction search:** a vectorised score test for all 1,263 cross-mechanism SNP pairs, inside each cross-validation fold.",
-      "**S4 Pair selection:** a QUBO of relevance minus redundancy, solved by simulated annealing and by QAOA with error mitigation.",
-      "**S5 Quantum encoder:** 12 eight-qubit circuits encode the 48 selected pairs into 96 features.",
-      "**S6 Model zoo:** 17 predictors, from the IDRS and a BMI rule to a stacked hybrid.",
-      "**S7 Evaluation:** fifteen experiments (E0–E13) with DeLong, McNemar and Holm-corrected tests.",
-      "**S8 Application:** a calibrated model behind a dashboard, a REST API and a PDF report, with LD imputation.",
+    H2("3.1 Proposed Solution"),
+    P("Chapter 1 ended with three questions. QGenomix answers them with one reproducible system that joins real " +
+      "genotypes, published risk scores and the IDRS questionnaire, and delivers the result as a risk report that a " +
+      "person can read. It also asks a fourth question: where can quantum computing help? Section 3.2 explains the " +
+      "two steps where it is used and why."),
+    P(`${F("arch")} shows the system. Three inputs feed eight stages that run in order; the two purple stages use ` +
+      `quantum circuits and the last stage is the application a person actually sees.`),
+    ...figure("fig_architecture.png", "The QGenomix system: three inputs, eight stages, two of them quantum (purple)", "arch"),
+    P("The eight stages are:", { after: 60, keepNext: true }),
+    ...enumerated([
+      "Data preparation: quality control of 1000 Genomes, principal components, D-PRISM and mechanism scores, a haplotype library and an LD panel.",
+      "Cohort and simulator: synthetic South Asians as haplotype mosaics, with clinical factors, the IDRS and simulated T2D.",
+      "Interaction search: a vectorised score test for all 1,263 cross-mechanism SNP pairs, inside each cross-validation fold.",
+      "Pair selection: a QUBO of relevance minus redundancy, solved by simulated annealing and by QAOA with error mitigation.",
+      "Quantum encoder: 12 eight-qubit circuits encode the 48 selected pairs into 96 features.",
+      "Model zoo: 17 predictors, from the IDRS and a BMI rule to a stacked hybrid.",
+      "Evaluation: seventeen experiments (E0–E15) with DeLong, McNemar and Holm-corrected tests.",
+      "Application: a calibrated model behind a dashboard, a REST API and a PDF report, with LD imputation.",
     ]),
-    H2("3.3 Work Breakdown Structure"),
+    P("Chapter 4 gives the design of these stages and Chapter 5 their results.", { before: 60 }),
+    H2("3.2 Why Quantum Computing"),
+    P("Quantum computing is used at two steps because the problem itself has the shape of what quantum hardware does " +
+      "natively. A third reason is practical:", { after: 60, keepNext: true }),
+    ...bullets([
+      `Interaction is what entanglement represents. The scientific question is gene–gene interaction: whether two ` +
+        `variants together change risk more than each alone. In the encoder the two SNPs of a candidate pair sit on two ` +
+        `qubits joined by a CZ gate, so each measured feature can depend on both SNPs; without entanglement a qubit can ` +
+        `only ever report its own SNP ${cite("perez", "havlicek")}.`,
+      `Pair selection is a native quantum optimisation problem. Choosing 48 of 200 candidates while penalising overlap ` +
+        `has about 10^{47} possible answers. As a QUBO it maps directly onto an Ising energy, which QAOA and quantum ` +
+        `annealers minimise ${cite("lucas", "farhi")}.`,
+      "The circuits are sized for today's hardware. The encoder needs 8 qubits and each QAOA step 12, within what " +
+        "current IBM processors run, so the same circuits move from the simulator to hardware unchanged.",
+    ]),
+    P("Quantum claims are easy to overstate, so each step faces a matched classical control. Two experiments then " +
+      "measure what the quantum part adds: E14 removes entanglement on an outcome built only from gene–gene " +
+      "interaction, and E15 lets 12-qubit QAOA make the full pair selection against random sampling and simulated " +
+      "annealing (Section 5.6).", { before: 60 }),
+    H2("3.3 Approved Objectives"),
+    P("The objectives approved at the mid-semester evaluation were:", { after: 60, keepNext: true }),
+    ...enumerated([
+      "Build a complete genomic data pipeline: QC, SNP selection, pair ranking and label generation.",
+      "Design and implement a variational quantum circuit encoder that produces interaction features for SNP pairs.",
+      "Train classical baselines (LR, RF, XGBoost, SVM) and compute a PRS as a clinical reference.",
+      "Build a hybrid stacking ensemble integrating quantum features, PRS and classical predictions.",
+      "Implement an adaptive SHAP-guided loop that refines the gene-pair selection.",
+      "Benchmark all models on a held-out test set using AUC-ROC, F1 and EDR@K, with DeLong and McNemar tests.",
+    ]),
+    P(`${TB("objectives")} in Chapter 6 reports the status of each objective.`, { before: 60 }),
+    H2("3.4 Investigative Techniques"),
+    P("QGenomix uses four complementary techniques:", { after: 60, keepNext: true }),
+    ...bullets([
+      "Comparison: all 17 predictors are trained on identical splits and scored with identical metrics.",
+      "Simulation with ground truth: outcomes come from a known model with planted interactions, so discovery and calibration can be checked exactly.",
+      "Ablation: each quantum component is compared with the same component without its quantum ingredient (annealing instead of QAOA, the circuit without entanglement, a classical network of similar size).",
+      "External checks: models trained on synthetic people are tested on real genomes of five ancestries, on each South Asian population, and under thirteen alternative simulator settings.",
+    ]),
+    H2("3.5 Novelty of Work"),
+    P("The work is new in six ways:", { after: 60, keepNext: true }),
+    ...enumerated([
+      "It tests for interaction between published T2D mechanism scores on real South Asian haplotypes, and measures the value of genetics for lean people against India's own screening questionnaire.",
+      "It poses gene-pair selection as a QUBO with an SNP-overlap redundancy term and solves it with a constraint-preserving QAOA started from a Dicke state, then measures it under realistic noise with error mitigation.",
+      "It gives every quantum component a matched classical control.",
+      "It introduces two task-specific metrics: EDR@K for interaction discovery and lean-case capture for screening.",
+      "It builds an LD imputation panel from South Asian reference genomes so that partial consumer DNA files give reliable reports.",
+      "It measures what the quantum parts contribute: entanglement is what lets the circuit capture gene–gene interaction, and hardware-sized QAOA makes the full pair selection through decomposition.",
+    ]),
+    H2("3.6 Assumptions and Constraints"),
+    P("The results should be read with these assumptions in mind:", { after: 60, keepNext: true }),
+    ...enumerated([
+      `Disease outcomes are simulated with known ground truth, using a liability-threshold model calibrated to Indian prevalence ${cite("anjana")}; genotypes, allele frequencies, linkage and polygenic weights are real.`,
+      "Synthetic cohorts are mosaics of real South Asian haplotypes in one-megabase blocks, which keeps local linkage but removes population substructure.",
+      "Genotype files are on genome build GRCh37 and the forward strand, as 23andMe and AncestryDNA files are; other builds are rejected.",
+      "Quantum hardware access is limited to IBM's free Open Plan (10 QPU minutes per 28 days), so most quantum results come from exact and noisy simulators.",
+      "All computation runs on a 16-core laptop with 14 GB of memory; large steps are chunked to fit.",
+    ]),
+    H2("3.7 Standards"),
+    P("The project follows these standards:", { after: 60, keepNext: true }),
+    ...enumerated([
+      "Genomic quality control follows PLINK 2 conventions: minor-allele frequency ≥ 1%, genotype missingness ≤ 5%, Hardy–Weinberg p > 10^{−6} in South Asians.",
+      `Polygenic weights come from harmonised GRCh37 scoring files of the PGS Catalog ${cite("lambert")}; the IDRS is scored exactly as published ${cite("mohan")}.`,
+      `Prediction models are reported with discrimination and calibration on held-out data, following the TRIPOD recommendations ${cite("tripod")}; a model card documents intended use, data, performance, fairness and limits.`,
+      "Code follows PEP 8 (checked by ruff), is covered by automated tests run on every push, and exposes a REST API with an OpenAPI description.",
+      "Every result records the hash of the configuration that produced it; fixed seeds make runs repeatable.",
+    ]),
+    H2("3.8 Project Outcomes and Deliverables"),
+    P("The project delivers:", { after: 60, keepNext: true }),
+    ...enumerated([
+      "A reproducible data pipeline on real 1000 Genomes data, with the D-PRISM score, mechanism scores and a South Asian haplotype library.",
+      "An outcome simulator with clinical factors and the IDRS, validated against the real population (E0).",
+      "An interaction search with QUBO selection and QAOA, including error mitigation and a script for real IBM hardware.",
+      "An 8-qubit variational pair encoder with its own exact simulator, and its classical controls.",
+      "A model zoo of 17 predictors and seventeen experiments (E0–E15), with statistical tests.",
+      "A risk-report application: dashboard, REST API, PDF report, LD imputation for consumer DNA files and a Docker image.",
+      `A test suite of ${nTests} automated tests with continuous integration, a model card, and this report.`,
+    ]),
+    H2("3.9 Work Breakdown Structure"),
+    P(`${TB("wbs")} breaks the work into eight phases. Six are complete; the seventh has been built and rehearsed and ` +
+      `is kept for the final panel because it needs team accounts.`),
     tableCaption("Work breakdown and progress", "wbs"),
     table(["Phase", "Scope", "Progress", "Status"], [
       ["1", "Data pipeline on real 1000 Genomes data", "100%", "Complete"],
       ["2", "Outcome simulator, clinical factors and IDRS", "100%", "Complete"],
       ["3", "Interaction search, QUBO selection and QAOA with error mitigation", "100%", "Complete"],
       ["4", "Variational quantum encoder and its classical controls", "100%", "Complete"],
-      ["5", "Classical baselines, hybrid stack and experiments E0–E13", "100%", "Complete"],
+      ["5", "Classical baselines, hybrid stack and experiments E0–E15", "100%", "Complete"],
       ["6", "Application: dashboard, API, PDF, LD imputation, Docker", "100%", "Complete"],
       ["7", "Run on real IBM quantum hardware; public online demo", "Ready", "Planned for the final panel"],
       ["8", "Final report, slides and demo video", "In progress", "Ongoing"],
     ], [900, 4486, 1300, 2700], { aligns: [AlignmentType.CENTER, AlignmentType.LEFT, AlignmentType.CENTER, AlignmentType.LEFT] }),
-    H2("3.4 Tools and Technology"),
+    H2("3.10 Tools and Technology"),
+    P(`${TB("tools")} lists the tools used, with the versions that produced the results in this report.`),
     tableCaption("Tools and technologies used", "tools"),
     table(["Tool / Library", "Version", "Purpose"], [
       ["Python", "3.12", "Implementation language"],
@@ -687,7 +790,39 @@ function chapter3() {
       ["Docker", "29", "Container image for the application"],
       ["pytest / ruff / GitHub Actions", "9.1 / 0.16 / —", "Tests, style checks, continuous integration"],
       ["VS Code, Git, GitHub", "—", "Development environment and version control"],
-    ], [2600, 1400, 5386], { shadeFirst: true }),
+    ], [2800, 1600, 4986], { shadeFirst: true }),
+    H2("3.11 Changes Since the Mid-Semester Evaluation"),
+    P(`The mid-semester design was generic. ${TB("changes")} lists what changed and why; each change gives the ` +
+      "project a measurable clinical outcome and a truth that can be checked."),
+    tableCaption("Changes from the mid-semester plan", "changes"),
+    table(["Aspect", "Mid-semester plan", "Implemented", "Reason"], [
+      ["Clinical focus", "T2D in general", "Early-onset T2D in lean South Asians, compared with IDRS screening", "A specific, unmet need in India gives a measurable outcome"],
+      ["Genotypes", "2,504 × 1,000 SNP matrix", "Full 1000 Genomes data; 10,000 synthetic South Asians built from real haplotypes", "Real allele frequencies and linkage; enough people to detect interactions"],
+      ["Risk scores", "Literature GWAS betas (pending)", "D-PRISM South Asian PRS (1.34M variants) and 5 mechanism scores from the PGS Catalog", "Published, ancestry-matched weights"],
+      ["Outcomes", "Labels with 20 hidden pairs", "Liability model: genetics, β-cell × lipodystrophy interaction, 10 planted pairs, age, sex, BMI, waist, activity, family history", "Known truth makes every discovery claim checkable"],
+      ["Pair selection", "Adaptive SHAP loop", "Score test on 1,263 cross-mechanism pairs, then QUBO (annealing and QAOA)", `SHAP ranking found ${pc(edrShap)} of planted pairs, the score test ${pc(edrScore)} (E1)`],
+      ["Quantum", "VQC encoder, 125 circuits", "QAOA with error mitigation; 12-circuit VQC with no-entanglement and classical-twin controls", "Controls isolate what the quantum part contributes"],
+      ["Output", "Benchmark table", "Benchmark, web app with PDF report, REST API, Docker image", "Shows how the result reaches a clinician or a user"],
+    ], [1400, 1800, 3486, 2700], { shadeFirst: true }),
+    ...(PANEL ? sinceMentor() : []),
+  ];
+}
+
+function sinceMentor() {
+  return [
+    H2("3.12 Changes Since the Mentor Evaluation"),
+    P(`${TB("since_mentor")} lists what changed after the mentor evaluation. Most changes answer the mentor's ` +
+      "feedback on the report and the slides; the two new experiments answer the question of why quantum computing is " +
+      "used at all."),
+    tableCaption("Changes since the mentor evaluation", "since_mentor"),
+    table(["Aspect", "At the mentor evaluation", "Final", "Reason"], [
+      ["Quantum evidence", "Quantum parts compared with controls on the realistic cohort only", "E14 shows entanglement is what captures gene–gene interaction; E15 shows 12-qubit QAOA can make the full pair selection", "To measure why each quantum part is there"],
+      ["Introduction", "Problem, solution and quantum methods together", "The problem only, with sourced statistics; the solution starts in Chapter 3", "Mentor's feedback"],
+      ["Figures", "Several panels per figure, small text", "One point per figure, drawn at print size with text as large as the body", "Mentor's feedback"],
+      ["Contents and links", "Typed contents; figures and tables not always discussed", "Live Word fields for contents, lists and cross-references; every figure, table and reference discussed in the text", "Mentor's feedback"],
+      ["References", "Mixed style with DOI links", "APA throughout, no DOI links; each statistic names its source and date", "Mentor's feedback"],
+      ["Slides", "16 dense slides", "41 light slides, large text, a named source under every outside statistic", "Mentor's feedback"],
+    ], [1500, 2350, 3536, 2000], { shadeFirst: true, whole: true }),
   ];
 }
 
@@ -698,34 +833,38 @@ function chapter4() {
   return [
     H1("CHAPTER 4: DESIGN SPECIFICATIONS"),
     H2("4.1 System Architecture"),
-    P(`${F("arch")} shows the system. Three inputs feed eight stages; the two purple stages use quantum circuits, ` +
-      `and each is compared against a classical control. ${TB("stages")} lists the module and main technique of each ` +
-      "stage."),
-    ...figure("fig_architecture.png", 620, "QGenomix architecture: inputs, the eight stages S1–S8, and the quantum stages (purple)", "arch"),
+    P(`${F("arch")} in Chapter 3 gave the overall flow. ${TB("stages")} maps each stage to the module that implements ` +
+      `it and its main technique. All stages share one Python package and one configuration file, and each can be ` +
+      `re-run on its own with one \`make\` command.`),
     tableCaption("Stages, code modules and techniques", "stages"),
     table(["Stage", "Module (src/qgenomix)", "Technique"], [
-      ["S1 Data preparation", "data", "PLINK 2 QC (MAF, HWE, missingness), PCA, PRS scoring, haplotype library (2,710 blocks), LD panel"],
-      ["S2 Cohort and simulator", "data.cohort, sim, clinical", "Haplotype-mosaic cohort; liability-threshold outcome model, 11% prevalence; IDRS"],
-      ["S3 Interaction search", "search.relevance", "Vectorised Rao score test for 1,263 pairs, refitted in every cross-validation fold"],
-      ["S4 Pair selection", "search.qubo, solvers, qaoa, mitigation", "QUBO of relevance minus SNP overlap; simulated annealing with swap polish; QAOA in Qiskit with error mitigation"],
-      ["S5 Quantum encoder", "quantum", "8-qubit data re-uploading circuit (RY/RZ rotations, chain of CZ gates), 4 layers, 64 shared parameters; fidelity kernel"],
-      ["S6 Model zoo", "models.zoo", "IDRS, BMI rule, logistic regression, random forest, SVM, XGBoost, quantum heads, quantum-kernel SVC, stacking"],
-      ["S7 Evaluation", "eval, pipeline", "AUC, average precision, F1, Brier, EDR@K, lean-case capture; DeLong, McNemar, Holm; E0–E13"],
-      ["S8 Application", "app, data.impute", "Genotype parser, LD imputation, calibrated model, FastAPI, Streamlit, PDF report, Docker"],
-    ], [2050, 2300, 5036], { shadeFirst: true }),
+      ["1 Data preparation", "data", "PLINK 2 QC (MAF, HWE, missingness), PCA, PRS scoring, haplotype library (2,710 blocks), LD panel"],
+      ["2 Cohort and simulator", "data.cohort, sim, clinical", "Haplotype-mosaic cohort; liability-threshold outcome model, 11% prevalence; IDRS"],
+      ["3 Interaction search", "search.relevance", "Vectorised Rao score test for 1,263 pairs, refitted in every cross-validation fold"],
+      ["4 Pair selection", "search.qubo, solvers, qaoa, xy_qaoa, mitigation", "QUBO of relevance minus SNP overlap; simulated annealing with swap polish; QAOA in Qiskit with error mitigation; QAOA decomposition for the full problem"],
+      ["5 Quantum encoder", "quantum", "8-qubit data re-uploading circuit (RY/RZ rotations, chain of CZ gates), 4 layers, 64 shared parameters; fidelity kernel"],
+      ["6 Model zoo", "models.zoo", "IDRS, BMI rule, logistic regression, random forest, SVM, XGBoost, quantum heads, quantum-kernel SVC, stacking"],
+      ["7 Evaluation", "eval, pipeline", "AUC, average precision, F1, Brier, EDR@K, lean-case capture; DeLong, McNemar, Holm; E0–E15"],
+      ["8 Application", "app, data.impute", "Genotype parser, LD imputation, calibrated model, FastAPI, Streamlit, PDF report, Docker"],
+    ], [2100, 2300, 4986], { shadeFirst: true }),
     H2("4.2 Design Level Diagrams"),
     H3("4.2.1 Report Generation"),
-    P(`${F("flow")} shows how the application turns one DNA file and six questionnaire answers into a report. The slow ` +
-      "genetic part runs once per file and is cached; the model, explanation and what-ifs then respond instantly."),
-    ...figure("fig_app_flow.png", 620, "Report generation: from a consumer DNA file and the questionnaire to the risk report", "flow"),
+    P(`${F("flow")} follows one person's data through the application. A DNA file from 23andMe or AncestryDNA is checked ` +
+      `and its missing variants are filled in. Genetic scores and quantum features are computed from it, six ` +
+      `questionnaire answers join them in the calibrated model, and the result is a report on screen or as a PDF. The ` +
+      `slow genetic part runs once per file and is cached, so the model, its explanation and the what-if sliders then ` +
+      `respond at once.`),
+    ...figure("fig_app_flow.png", "From a consumer DNA file and six answers to a risk report", "flow"),
     H3("4.2.2 Quantum Pair Encoder"),
-    P(`Each circuit (${F("circuit")}) takes four SNP pairs on eight qubits, two qubits per pair. In every layer each qubit ` +
-      `receives its SNP dosage as a rotation angle, then trainable RY and RZ rotations, then a chain of CZ gates ` +
-      `within each pair and between neighbouring pairs; the data is re-uploaded in each of the four layers ` +
-      `${cite("perez")}. The expectation of Z on every qubit gives 8 features per circuit. Twelve circuits share the ` +
-      `same 64 trainable angles and give 96 features. Without the CZ gates each qubit would only see its own SNP; ` +
-      `entanglement is what lets a feature depend on both SNPs of a pair.`),
-    ...figure("fig_circuit.png", 470, "The 8-qubit pair encoder (two of its four layers shown)", "circuit"),
+    P(`${F("circuit")} shows one layer of the encoder. Each circuit carries four SNP pairs on eight qubits, two qubits ` +
+      `per pair, so SNP 1a and SNP 1b are the two variants of the first pair. The teal block loads each SNP dosage (0, 1 ` +
+      `or 2 copies) as a rotation angle. The purple block applies trainable RY and RZ rotations. The vertical lines are ` +
+      `CZ gates, which entangle the qubits inside each pair and between neighbouring pairs. The layer runs four times, ` +
+      `so the data is loaded afresh in each one ${cite("perez")}.`),
+    ...figure("fig_circuit.png", "One layer of the 8-qubit pair encoder", "circuit"),
+    P(`Measuring Z on every qubit gives 8 features per circuit. Twelve circuits share the same 64 trainable angles and ` +
+      `give 96 features. Without the CZ gates each qubit would see only its own SNP; entanglement is what lets a feature ` +
+      `depend on both SNPs of a pair, which is why experiment E5 removes it as a test.`),
     H3("4.2.3 Pair Selection and QAOA"),
     P(`The QUBO rewards relevance (the score-test strength of each pair) and penalises pairs that share a SNP or a ` +
       `linkage block, with a penalty that forces exactly 48 pairs ${cite("lucas")}. Simulated annealing with a ` +
@@ -733,47 +872,73 @@ function chapter4() {
       `forms: the textbook penalty form with an X mixer, and a constraint-preserving XY mixer ${cite("hadfield")} ` +
       `started from a Dicke state prepared with the Bärtschi–Eidenbenz circuit ${cite("bartschi")}, which only ` +
       `explores valid selections.`),
+    P(`To make the full 48-of-200 selection with hardware-sized circuits, a decomposition (large-neighbourhood search ` +
+      `${cite("shaw")}) hands QAOA one block at a time. Starting from the top-K choice, a block of 12 candidates, 4 of ` +
+      `them selected, is cut out; with the rest held fixed, choosing which 4 to keep is a 12-variable problem of the ` +
+      `same form. XY-mixer QAOA solves it, and the best of 32 samples is kept if it improves the whole selection. ` +
+      `Because the XY mixer never leaves the valid selections, each block is simulated exactly in its 495 valid ` +
+      `amplitudes instead of 4,096; this simulator matches PennyLane to 10^{−8}.`),
     H3("4.2.4 Hybrid Model"),
     P(`Level-one learners (an additive logistic model, XGBoost on the quantum features, and a quantum-kernel SVC) ` +
       `produce out-of-fold predictions inside five-fold cross-validation; a logistic meta-learner combines them. The ` +
       `deployed model is XGBoost on clinical factors, PRS, mechanism scores, SNP dosages and quantum features, with ` +
       `Platt calibration on a held-out set.`),
     H2("4.3 Snapshots of Working Prototype"),
-    P(`${F("dash")} shows the dashboard report for a synthetic demo persona: a 34-year-old woman with BMI 21.6. QGenomix ` +
-      "rates her high risk (84th percentile) while the IDRS rates her moderate and the BMI rule does not flag her. Her " +
-      "β-cell and lipodystrophy scores are both high, and the what-if table shows exercise and a smaller waist cutting " +
-      `her risk from 23% to 6%. ${F("pdf")} is the PDF report the same page produces, and ${F("clinician")} the ` +
-      "clinician view."),
-    ...figure(path.join(__dirname, "asha_top.png"), 450, "Dashboard report for a lean, high-genetic-risk demo persona (synthetic genome)", "dash"),
-    ...figure("app_pdf_report.png", 430, "The one-page PDF report (download button and POST /v1/report.pdf)", "pdf"),
-    ...figure(path.join(__dirname, "clinician_crop.png"), 560, "Clinician view of a 200-person synthetic cohort", "clinician"),
-    P("The demo runs with `make app` (dashboard), `make api` (REST service) or `docker compose up` (both, in " +
-      "containers). Three synthetic personas are included: a lean woman at high genetic risk, an obese man at high " +
-      "risk, and a low-risk young woman.", { before: 60 }),
+    P(`The application is shown here for a synthetic demo person, a 34-year-old woman with a BMI of 21.6: exactly the ` +
+      `kind of person Chapter 1 described. ${F("app_summary")} is the top of her report. QGenomix rates her high risk, at ` +
+      `the 84th percentile, with a 23% probability of diabetes. The IDRS rates her moderate and the BMI rule does not ` +
+      `flag her at all, and the two red messages say so in plain words.`),
+    ...figure("app_summary.png", "Top of the report: QGenomix disagrees with the IDRS and the BMI rule", "app_summary"),
+    P(`${F("app_mech")} shows why. Her insulin-production and fat-distribution scores sit at the 96th and 88th ` +
+      `percentiles while her obesity score sits at the 24th, the genetic pattern behind lean diabetes. The report raises ` +
+      `a combination flag when both of the first two are high.`),
+    ...figure("app_mechanisms.png", "Mechanism profile: where the risk comes from", "app_mech"),
+    P(`${F("app_whatif")} shows what she can do about it. With genes, age and family history held fixed, regular ` +
+      `vigorous exercise lowers her risk from 23% to 15%, a waist 5 cm smaller lowers it to 11%, and both together to ` +
+      `6%. Section 5.8 tests these estimates against the true effects.`),
+    ...figure("app_whatif.png", "Lifestyle what-ifs for the same person", "app_whatif"),
+    P("The same page downloads as a one-page PDF, and a clinician view ranks a whole cohort by risk. The demo runs with " +
+      "`make app` (dashboard), `make api` (REST service) or `docker compose up` (both, in containers). Three synthetic " +
+      "people are included: a lean woman at high genetic risk, an obese man at high risk, and a low-risk young woman.",
+    { before: 60 }),
   ];
 }
 
 // =====================================================================
 // CHAPTER 5: IMPLEMENTATION AND EXPERIMENTAL RESULTS
 // =====================================================================
+const MODEL_NAMES = [["M1_bmi", "BMI rule"], ["M2_prs", "PRS only (D-PRISM)"], ["M0_idrs", "IDRS questionnaire"],
+  ["M3c_clinical", "Clinical factors, logistic regression"], ["M3_additive", "Clinical + genetics, logistic regression"],
+  ["M4_rf", "Random forest"], ["M5_svm", "Support vector machine"], ["M6_xgb", "XGBoost"],
+  ["M7_xgb_pairs", "XGBoost + selected SNP pairs"], ["H_twin", "Classical twin encoder"],
+  ["M8_xgb_twin", "XGBoost + classical twin features"], ["H_noent", "Circuit without entanglement"],
+  ["M9_xgb_noent", "XGBoost + circuit without entanglement"], ["H_vqc", "Circuit with entanglement"],
+  ["M10_xgb_vqc", "XGBoost + quantum features"], ["M11_qsvc", "Quantum-kernel SVC (one circuit only)"],
+  ["M12_stack", "Stacked hybrid"]];
+
 function chapter5() {
   const sx = (k) => mit(k);
+  const xy = sx("xy_p1"), pen = sx("penalty_p1");
+  const e4 = T.e4, e3 = T.e3, top = T.e2[Object.keys(T.e2).at(-1)];
+  const ab = T.e6.best_objective_share;
+  const groups = { ...POPS, male: "Men", female: "Women", all: "All South Asians" };
   return [
     H1("CHAPTER 5: IMPLEMENTATION AND EXPERIMENTAL RESULTS"),
     H2("5.1 Implementation"),
     H3("5.1.1 Data"),
     P(`PLINK 2 ${cite("plink")} processed the 1000 Genomes phase 3 release ${cite("kg")}: 84 million variants in ` +
-      `2,504 people from 26 populations. From it we computed the five components of D-PRISM (1.34 million variants), ` +
-      `the five mechanism scores (β-cell, lipodystrophy, liver/lipid, obesity, proinsulin) and the dosages of their 62 ` +
-      `SNPs. The 489 South Asian samples (Gujarati, Punjabi, Bengali, Sri Lankan Tamil and Telugu) give 978 phased ` +
-      `haplotypes. A synthetic person is assembled by drawing each one-megabase block of the genome from a random South ` +
-      `Asian haplotype, which keeps real allele frequencies and local linkage while allowing a cohort of any size.`),
+      `2,504 people from 26 populations. From it we computed the five components of D-PRISM ${cite("huerta")} (1.34 ` +
+      `million variants), the five mechanism scores ${cite("loesch")} (β-cell, lipodystrophy, liver/lipid, obesity, ` +
+      `proinsulin) and the dosages of their 62 SNPs. The 489 South Asian samples (Gujarati, Punjabi, Bengali, Sri Lankan ` +
+      `Tamil and Telugu) give 978 phased haplotypes. A synthetic person is assembled by drawing each one-megabase block ` +
+      `of the genome from a random South Asian haplotype, which keeps real allele frequencies and local linkage while ` +
+      `allowing a cohort of any size.`),
     H3("5.1.2 Outcome Simulator"),
     P(`Each person's liability to T2D is a weighted sum of the D-PRISM background (10% of variance), the five ` +
       `mechanism scores (6.9%), a β-cell × lipodystrophy interaction (2.0%), ten planted SNP-pair interactions (4.0%), ` +
       `age (7%), BMI (4%), waist, activity and family history (4.5% together) and noise. The top 11% become cases, ` +
       `close to the national prevalence ${cite("anjana")}. The IDRS is computed from the simulated clinical factors ` +
-      `exactly as published.`),
+      `exactly as published ${cite("mohan")}.`),
     H3("5.1.3 Interaction Search"),
     P(`For each of the 1,263 pairs of SNPs from different mechanisms, a Rao score test asks whether the pair's product ` +
       `term improves a logistic model that already contains all main effects and covariates; it is vectorised over all ` +
@@ -790,9 +955,9 @@ function chapter5() {
     H3("5.1.5 LD Imputation"),
     P(`Consumer chips measure about 600,000 SNPs, so a typical 23andMe or AncestryDNA file contains only about half ` +
       `of the D-PRISM variants. QGenomix predicts each missing variant from its best-correlated measured neighbour ` +
-      `(its tag), using linkage disequilibrium measured in the 489 South Asian genomes ${cite("marchini")}: the dosage ` +
-      `is the reference mean plus a regression slope times the tag's deviation from its mean. For each of 1.46 million ` +
-      `variants the panel stores the six best tags within 500 kb; the median best tag has r^{2} = ` +
+      `(its tag), using linkage disequilibrium measured in the 489 South Asian genomes ${cite("marchini", "browning")}: ` +
+      `the dosage is the reference mean plus a regression slope times the tag's deviation from its mean. For each of ` +
+      `1.46 million variants the panel stores the six best tags within 500 kb; the median best tag has r^{2} = ` +
       `${f2(e13.best_tag_r2_median)}. The panel builds in about two minutes and imputes a genome in about a second, ` +
       `with no external software.`),
     H3("5.1.6 Application"),
@@ -801,13 +966,17 @@ function chapter5() {
       `genome build, imputes missing variants, computes the scores and the IDRS, predicts calibrated risk, ranks the ` +
       `SNP pairs the person carries by SHAP ${cite("lundberg")}, simulates lifestyle changes and renders the report on ` +
       `screen, as JSON or as a PDF. Uploaded files are processed in memory and never stored.`),
+
     H2("5.2 Evaluation Protocol"),
     P(`Every experiment holds out 20% of people as a test set. All selection and fitting happens inside five-fold ` +
       `cross-validation on the remaining 80%, so no test information leaks into the choice of pairs. Results are ` +
       `averaged over 3 seeds. AUCs are compared with DeLong's test ${cite("delong", "sunxu")}, classifications with ` +
-      `McNemar's test, both Holm-corrected. EDR@10 is the share of the 10 planted pairs found in a method's top 10. ` +
-      `Lean-case capture is the share of lean cases (BMI < 23) among the top 20% of predicted risk, with exactly 20% ` +
-      `flagged. ${TB("experiments")} summarises the experiments.`),
+      `McNemar's test, both Holm-corrected.`),
+    P(`Three measures appear throughout. The AUC is the chance that a model ranks a random case above a random ` +
+      `non-case: 0.5 is a coin toss and 1 is perfect. EDR@10 is the share of the 10 planted pairs found in a method's ` +
+      `top 10. Lean-case capture is the share of lean cases (BMI < 23) among the top 20% of predicted risk, with ` +
+      `exactly 20% flagged. ${TB("experiments")} lists the seventeen experiments with their results, and the rest of this ` +
+      `chapter discusses them.`),
     tableCaption("Experiments and results", "experiments"),
     table(["Exp.", "Question", "Result"], [
       ["E0", "Does the simulated cohort behave like the population?", "Prevalence 11%; 25% of cases lean; β-cell + lipodystrophy high group: 37% case rate at lower BMI"],
@@ -818,105 +987,242 @@ function chapter5() {
       ["E5", "Does entanglement help?", `Entangled ${f3(auc("H_vqc"))}, no entanglement ${f3(auc("H_noent"))}, classical twin ${f3(auc("H_twin"))}: no`],
       ["E6", "Is QUBO selection better than top-K?", `${Math.round(e6.qubo.distinct_snps)} distinct SNPs vs ${Math.round(e6.topk.distinct_snps)}, ${Math.round(100 * (1 - e6.qubo.shadow_pairs / e6.topk.shadow_pairs))}% fewer redundant pairs, best objective in ${pc(e6win)} of runs`],
       ["E7", "Does QAOA solve the selection?", "Ideal: XY mixer 0.76 → 0.83 (depth 1 → 6), penalty 0.30 → 0.66; with IBM noise both ≈ 0.3"],
-      ["E7b", "Can error mitigation recover it?", `XY depth 1: ${f2(sx("xy_p1").raw)} → ${f2(sx("xy_p1").readout_postselect_zne)} (noise-free ${f2(sx("xy_p1").ideal_postselect)}); penalty: ${f2(sx("penalty_p1").raw)} → ${f2(sx("penalty_p1").readout_postselect_zne)}`],
+      ["E7b", "Can error mitigation recover it?", `XY depth 1: ${f2(xy.raw)} → ${f2(xy.readout_postselect_zne)} (noise-free ${f2(xy.ideal_postselect)}); penalty: ${f2(pen.raw)} → ${f2(pen.readout_postselect_zne)}`],
       ["E8", "Who catches lean cases?", `Top 20%: BMI rule ${pc(lean("M1_bmi"))}, IDRS ${pc(lean("M0_idrs"))}, clinical ${pc(lean("M3c_clinical"))}, with genetics ${pc(lean("M3_additive"))}`],
       ["E9", "Does it work on real genomes?", `AUC ${f3(T.e9.SAS.M3_additive[0])} South Asian; 0.85–0.87 East Asian, European, American; ${f3(T.e9.AFR.M3_additive[0])} African`],
       ["E10", "Are the app's what-ifs right?", `Waist −5 cm: ${rel("waist_minus_5cm", "model")} vs true ${rel("waist_minus_5cm", "true")}; exercise ${rel("vigorous_exercise", "model")} vs ${rel("vigorous_exercise", "true")}`],
       ["E11", "Is it fair across populations?", `Genetic-model AUC ${f2(Math.min(...popAuc))}–${f2(Math.max(...popAuc))} across five populations; gain over clinical +${f2(Math.min(...popGain))} to +${f2(Math.max(...popGain))}`],
       ["E12", "Robust to simulator assumptions?", `Genetics beats clinical in ${nAucWin}/${nSet} settings and beats IDRS on lean cases in ${nLeanWin}/${nSet}`],
       ["E13", "Partial consumer DNA files?", `45% coverage: PRS r ${f3(m13("mean_fill", PRS_T))} → ${f3(m13("ld_impute", PRS_T))}; high-risk kept ${pc(m13("mean_fill", HIGH_T))} → ${pc(m13("ld_impute", HIGH_T))}`],
+      ["E14", "Is entanglement what captures interaction?", `Pure-interaction outcome: ${f3(a14("vqc"))} with entanglement, ${f3(a14("noent"))} without, ${f3(a14("twin"))} for a larger classical network`],
+      ["E15", "Can 12-qubit QAOA make the full selection?", `Matches or beats annealing in ${e15.qaoa_p2.beats_annealing} of ${e15.qaoa_p2.n_runs} runs; best block answer ${(100 * e15.qaoa_p2.mean_is_block_optimum).toFixed(1)}% vs ${(100 * T.e15.paired_random_block_optimum).toFixed(1)}% for random sampling`],
     ], [750, 3000, 5636], { shadeFirst: true, aligns: [AlignmentType.CENTER, AlignmentType.LEFT, AlignmentType.LEFT] }),
 
     H2("5.3 Data and Simulator Checks"),
-    P(`The synthetic mosaic reproduces the real South Asian allele frequencies of the mechanism SNPs almost exactly ` +
-      `(r = 0.9999; ${F("e0")}). Its PRS spread is narrower than in the real samples because the mosaic removes ` +
-      `population substructure. The simulator reproduces the lean phenotype: 25% of cases are lean, and people high on ` +
-      `both the β-cell and lipodystrophy scores have a 37% case rate against 10% for everyone else, despite a lower ` +
-      `average BMI.`),
-    ...figure("fig_data_checks.png", 620, "E0: genetic principal components, mechanism SNP frequencies, and the PRS of real and synthetic South Asians", "e0"),
+    P(`Before any result can be trusted, the data must behave like the real population. ${F("e0_pca")} plots the first ` +
+      `two genetic components of all 2,504 people in 1000 Genomes; each dot is one person. Africans separate to the ` +
+      `right, Europeans and East Asians to the top and bottom, South Asians form a tight column between them, and ` +
+      `Americans spread out along their mixed ancestry. This is the well-known shape of human genetic variation ` +
+      `${cite("kg")}, so the genotypes were read and processed correctly.`),
+    ...figure("fig_e0_pca.png", "All 2,504 people of 1000 Genomes on the first two genetic components", "e0_pca"),
+    P(`${F("e0_freq")} tests the synthetic cohort. Each dot is one of the 62 mechanism SNPs, placed by its allele ` +
+      `frequency among the 489 real South Asians and among 10,000 synthetic people. Every dot sits on the diagonal ` +
+      `(r = ${eafR.toFixed(4)}), so building people from blocks of real haplotypes keeps the frequencies almost exactly.`),
+    ...figure("fig_e0_freq.png", "Allele frequencies of the 62 mechanism SNPs, real against synthetic", "e0_freq"),
+    P(`${F("e0_prs")} compares the D-PRISM risk score in the two groups. The centres match, but the real people spread ` +
+      `further to both sides, because a mosaic removes the population substructure that stretches the score in real ` +
+      `samples. This is the one known difference between synthetic and real people, and Section 5.7 therefore also ` +
+      `tests the models on real genomes.`),
+    ...figure("fig_e0_prs.png", "D-PRISM risk score of real and synthetic South Asians", "e0_prs"),
+    P(`${F("phenotype")} checks that the simulator reproduces the lean phenotype. It divides 40,000 synthetic people ` +
+      `into fifths by their β-cell score and by their lipodystrophy score; each cell gives the share who develop T2D. In ` +
+      `the bottom row, with the lowest β-cell score, the rate stays near 5% whatever the lipodystrophy score. In the top ` +
+      `row it climbs from 5% to 38%. The two mechanisms are dangerous together, not separately. People high on both have ` +
+      `a case rate of ${pc(T.e0.case_rate_both_high)} against ${pc(T.e0.case_rate_others)} for everyone else, at a lower ` +
+      `average BMI (${T.e0.bmi_both_high.toFixed(1)} against ${T.e0.bmi_others.toFixed(1)}), and ` +
+      `${pc(T.e0.lean_share_of_cases)} of all cases are lean. This is the pattern Chapter 1 described, reproduced by ` +
+      `the simulator.`),
+    ...figure("fig_lean_phenotype.png", "Share of people who develop T2D, by fifths of two mechanism scores", "phenotype"),
 
     H2("5.4 Prediction and the Lean Blind Spot"),
-    P(`${F("e1")} compares all 17 predictors. Adding the PRS and mechanism scores to the clinical factors raises AUC ` +
-      `from ${f3(auc("M3c_clinical"))} to ${f3(auc("M3_additive"))}; DeLong's test gives p ≤ 4×10^{−6} after Holm ` +
-      `correction in each seed. The stacked hybrid is the most accurate model (${f3(auc("M12_stack"))}), but its ` +
-      `margin over the additive model is not significant.`),
-    ...figure("fig_e1_benchmark.png", 520, "E1 benchmark: test AUC of the 17 predictors (mean ± sd over 3 seeds)", "e1"),
-    P(`${F("e8")} is the main clinical result. Among lean people who develop diabetes, a BMI rule flags none by ` +
-      `construction, the IDRS flags ${pc(lean("M0_idrs"))} and a clinical-factor model ${pc(lean("M3c_clinical"))}. ` +
-      `Adding genetics raises this to ${pc(lean("M3_additive"))}: genetic information helps most for exactly the ` +
-      `people current screening misses.`),
-    ...figure("fig_e8_lean.png", 560, "E8: share of all cases and of lean cases caught when the top 20% by risk are screened", "e8"),
+    P(`${F("e1")} shows the main predictors, from the simplest rule at the bottom to the strongest model at the top. ` +
+      `Each step adds information: the BMI rule reaches ${f3(auc("M1_bmi"))}, a genetic score alone ` +
+      `${f3(auc("M2_prs"))}, the IDRS ${f3(auc("M0_idrs"))}, and all clinical factors together ` +
+      `${f3(auc("M3c_clinical"))}. Adding the genetic scores then lifts the AUC to ${f3(auc("M3_additive"))}, a gain ` +
+      `that DeLong's test confirms in every seed (p ≤ 4×10^{−6} after Holm correction).`),
+    ...figure("fig_e1_benchmark.png", "Test AUC of the main predictors (mean over 3 seeds)", "e1"),
+    P(`Above that point the bars flatten. XGBoost reaches ${f3(auc("M6_xgb"))}, the stacked hybrid ` +
+      `${f3(auc("M12_stack"))} and quantum features ${f3(auc("M10_xgb_vqc"))}, and none of these margins is significant. ` +
+      `Most of the signal in the data is additive and simple models capture it. ${TB("models")} gives the results for ` +
+      `all 17 predictors. The quantum-kernel SVC stands out at ${f3(auc("M11_qsvc"))} because it sees only the 8 SNPs ` +
+      `of one circuit; it is an input to the stacked model and not a stand-alone predictor.`),
+    tableCaption("All 17 predictors on the held-out test set (mean over 3 seeds)", "models"),
+    table(["Predictor", "AUC", "Lean cases caught"], MODEL_NAMES.map(([k, n]) => [n, f3(auc(k)), pc(lean(k))]),
+      [5786, 1500, 2100], { aligns: [AlignmentType.LEFT, AlignmentType.CENTER, AlignmentType.CENTER], pad: 30 }),
+    P(`${F("e8")} is the main clinical result of the project. Suppose the top 20% of people by risk are sent for a blood ` +
+      `test, and count how many lean people who develop diabetes are among them. A BMI rule catches none, by ` +
+      `construction. The IDRS catches ${pc(lean("M0_idrs"))} and a model of all clinical factors ` +
+      `${pc(lean("M3c_clinical"))}. Adding genetics raises this to ${pc(lean("M3_additive"))}, nearly double the IDRS. ` +
+      `Genetic information helps most for exactly the people current screening misses.`, { before: 200 }),
+    ...figure("fig_e8_lean.png", "Lean diabetes cases caught when the top 20% by risk are screened", "e8"),
 
     H2("5.5 Interaction Discovery"),
-    P(`The score test recovers most planted pairs at 10,000 people and nearly all at 20,000 (E2, E3; ${F("e2")}), ` +
-      "well ahead of PLINK's BOOST, and the mechanism-level β-cell × lipodystrophy interaction is detected in every " +
-      `run when it is present. Under the null the test is calibrated (λ = 1.05) and 18 of 20 runs report nothing ` +
-      `(${F("e4")}). ` +
-      `QUBO selection covers more distinct SNPs and wastes fewer slots on redundant "shadow" pairs than top-K (E6).`),
-    ...figure("fig_e2_power.png", 600, "E2: share of planted pairs found against their effect size, and power of the mechanism-level test", "e2"),
-    ...figure("fig_e4_null.png", 560, "E4: p-values under the null hypothesis and the strongest pair in each of 20 null runs", "e4"),
+    P(`The simulator plants ten interacting SNP pairs, so a search method can be marked exactly. ${F("e2")} plots the ` +
+      `share of those pairs found as they grow stronger, for 10,000 people and the strongest mechanism interaction. ` +
+      `At δ = 0.2 the score test finds ${pc(top["0.2"].edr10_score)} of them in its top 10 against ` +
+      `${pc(top["0.2"].edr10_boost)} for PLINK's BOOST, and the QUBO-selected set of 48 pairs holds ` +
+      `${pc(top["0.2"].recall_qubo)}. Across all mechanism settings the score test finds 70–84% and BOOST 40–48%. The ` +
+      `mechanism-level β-cell × lipodystrophy interaction is detected in every run in which it is present.`),
+    ...figure("fig_e2_power.png", "Planted pairs found as the interaction grows stronger", "e2"),
+    P(`${F("e3")} asks how many people such a study needs. At δ = 0.2 the score test finds ` +
+      `${pc(e3["2500"].edr10_score)} of the pairs with 2,500 people and ${pc(e3["10000"].edr10_score)} with 10,000, and ` +
+      `all of them with 40,000. This matters for future work: a real validation study will need tens of thousands of ` +
+      `South Asians.`),
+    ...figure("fig_e3_sample_size.png", "Planted pairs found as the cohort grows", "e3"),
+    P(`A search must also stay silent when there is nothing to find. E4 repeats the search ${e4.n_runs} times with no ` +
+      `planted interaction at all. ${F("e4")} compares its ${e4.n_tests.toLocaleString("en-IN")} p-values with what ` +
+      `chance alone would give. If the test is honest the dots lie on the diagonal, and they do (λ = ` +
+      `${f2(e4.lambda_gc)}). In ${e4.n_runs - e4.runs_with_any_bonferroni_hit} of the ${e4.n_runs} runs nothing passes ` +
+      `the significance threshold. The search does not invent interactions.`),
+    ...figure("fig_e4_null.png", "p-values of the score test when no interaction exists", "e4"),
+    P(`Finding pairs is not enough, because nearby variants in linkage repeat the same signal as redundant "shadow" ` +
+      `pairs. ${TB("selection")} compares three ways of choosing 48 pairs (E6). Plain top-K ranking keeps the most ` +
+      `planted pairs but spends ${e6.topk.shadow_pairs.toFixed(0)} of its 48 places on shadows and covers only ` +
+      `${Math.round(e6.topk.distinct_snps)} SNPs. The QUBO and mRMR ${cite("peng")} both cover ` +
+      `${Math.round(e6.qubo.distinct_snps)} SNPs with about 16 shadows. The QUBO reaches the best value of its objective ` +
+      `in ${pc(ab.qubo)} of runs and mRMR in ${pc(ab.mrmr)}, so it is a sound formulation of the problem, though only ` +
+      `slightly better than mRMR.`),
+    tableCaption(`Three ways of choosing 48 pairs (mean of ${T.e6.n_runs} runs)`, "selection"),
+    table(["Method", "Planted pairs kept", "Distinct SNPs", "Redundant pairs", "Best objective"], [
+      ["Top-K ranking", pc(e6.topk.recall), Math.round(e6.topk.distinct_snps), e6.topk.shadow_pairs.toFixed(1), pc(ab.topk)],
+      ["mRMR", pc(e6.mrmr.recall), Math.round(e6.mrmr.distinct_snps), e6.mrmr.shadow_pairs.toFixed(1), pc(ab.mrmr)],
+      ["QUBO", pc(e6.qubo.recall), Math.round(e6.qubo.distinct_snps), e6.qubo.shadow_pairs.toFixed(1), pc(ab.qubo)],
+    ], [2586, 1900, 1600, 1700, 1600], { shadeFirst: true, aligns: [AlignmentType.LEFT, AlignmentType.CENTER,
+      AlignmentType.CENTER, AlignmentType.CENTER, AlignmentType.CENTER] }),
 
     H2("5.6 Quantum Components"),
-    P(`Every quantum component was tested against a matched classical control, and none gave a significant gain. The ` +
-      `encoder performs the same with and without entanglement and the same as a classical twin (${F("e5")}). In QAOA, ` +
-      `the constraint-preserving XY mixer clearly beats the textbook penalty form on an ideal simulator (${F("e7")}), ` +
-      `but under IBM Kingston noise both fall to about 0.3. Error mitigation recovers most of the loss (${F("e7b")}): for ` +
-      `the XY circuit at depth 1 the approximation ratio rises from ${f2(sx("xy_p1").raw)} to ` +
-      `${f2(sx("xy_p1").readout_postselect_zne)}, against ${f2(sx("xy_p1").ideal_postselect)} noise-free and ` +
-      `${f2(sx("xy_p1").random_valid)} for a random valid choice. Post-selection does most of the work, which is ` +
-      `exactly what the conserved pair count makes possible. The penalty form only reaches the level of a random valid ` +
-      `choice (${f2(sx("penalty_p1").readout_postselect_zne)}), because even noise-free it has no edge once invalid ` +
-      `samples are discarded.${hwRun ? ` On the real ${hwRun.hardware_backend} processor the mitigated XY circuit ` +
-      `reached ${f2(hwRun.hardware_mitigated)} (raw ${f2(hwRun.hardware_raw)}).` : ""} An 8-qubit circuit can be ` +
-      `simulated exactly, so no speed-up is claimed; the contribution is a controlled test of where quantum methods ` +
-      `stand on this problem today.`),
-    ...figure("fig_e5_entanglement.png", 560, "E5: test AUC of the classical twin and of the quantum encoder with and without entanglement (3 seeds)", "e5"),
-    ...figure("fig_e7_qaoa.png", 620, "E7: QAOA solution quality, constraint satisfaction and two-qubit gate cost, ideal and with IBM Kingston noise", "e7"),
-    ...figure("fig_e7b_mitigation.png", 600, "E7b: QAOA quality on the IBM Kingston noise model after each mitigation stage", "e7b"),
+    P("Every quantum component was tested against a matched classical control. On the realistic cohort none gave a " +
+      "significant gain; two further experiments then measured whether each part does the job it is there for."),
+    H3("5.6.1 Entanglement and Gene–Gene Interaction"),
+    P(`${F("e5")} shows the test of the encoder on the realistic cohort. All three models use the same selected pairs ` +
+      `and differ only in the encoder; the dot is the mean AUC and the bar the spread between seeds. The entangled ` +
+      `circuit reaches ${f3(auc("H_vqc"))}, the same circuit without entanglement ${f3(auc("H_noent"))}, and a ` +
+      `classical network of similar size ${f3(auc("H_twin"))}. The bars overlap.`),
+    ...figure("fig_e5_entanglement.png", "The encoder with and without entanglement, and its classical twin", "e5"),
+    P(`E5 does not show that entanglement is useless. In the simulated cohort, interaction is a small share of risk ` +
+      `and the additive scores carry most of the signal, so any encoder of the pairs adds little. E14 asks the sharper ` +
+      `question: is entanglement what lets the circuit capture interaction at all? Its outcome is built only from four ` +
+      `gene pairs on real genotypes, so no single SNP carries risk. One circuit holds exactly those four pairs, and six ` +
+      `models see the same 8 dosages (${F("e14")}).`),
+    ...figure("fig_e14_interaction.png", "AUC when only gene pairs carry risk (mean and spread over 3 seeds)", "e14"),
+    P(`Regression on the dosages and the circuit without entanglement stay near chance (${f3(a14("additive"))} and ` +
+      `${f3(a14("noent"))}): an additive model cannot see a product. With the CZ gates the same circuit reaches ` +
+      `${f3(a14("vqc"))} (DeLong p < 10^{−13} in each seed), ` +
+      `${Math.round((100 * (a14("vqc") - 0.5)) / (a14("products") - 0.5))}% of the way to the ${f3(a14("products"))} ` +
+      `of a model told the true products. With ${e14.params.vqc} parameters it also beats a classical network of ` +
+      `${e14.params.twin_small} parameters in every seed (p ≤ 2×10^{−4}) and one of ${e14.params.twin} parameters in ` +
+      `two of three seeds. The classical networks were not tuned for this task, so the result shows that entanglement ` +
+      `works as an interaction detector, not that quantum circuits beat classical ones.`),
+    P(`${F("e14_qubit")} shows the mechanism. It plots the mean output of one qubit for each pair of dosages of its SNP ` +
+      `pair. With entanglement the output changes along both axes. With the CZ gates removed and the same angles kept, ` +
+      `every row is constant: the qubit can only ever report its own SNP. Over all eight qubits, ` +
+      `${Math.round(100 * e14.partner_share.vqc)}% of an entangled qubit's output variance comes from its partner SNP, ` +
+      `against exactly ${Math.round(100 * e14.partner_share.noent)}% without entanglement.`),
+    ...figure("fig_e14_qubit.png", "What one qubit outputs for each pair of dosages, with and without entanglement", "e14_qubit"),
+    H3("5.6.2 QAOA for Pair Selection"),
+    P(`QAOA is first tested on three 12-pair sub-problems (choose 4), small enough to run on real hardware. ` +
+      `${F("e7")} plots solution quality against circuit depth, where 1 is the best possible selection. On an ideal ` +
+      `simulator the constraint-preserving XY mixer starts at ${f2(depthMean("xy", 1))} and reaches ` +
+      `${f2(depthMean("xy", 6))}, above the ${f2(xy.random_valid)} of a random valid choice (the dotted line). Textbook ` +
+      `QAOA starts at ${f2(depthMean("penalty", 1))} and reaches only ${f2(depthMean("penalty", 6))}, because much of ` +
+      `its probability is wasted on invalid selections. The red squares show the same circuits at depths 1 and 2 on a ` +
+      `noise model of the IBM Kingston processor: both fall to about 0.3 and the advantage disappears.`),
+    ...figure("fig_e7_qaoa.png", "QAOA solution quality against depth, ideal and with IBM noise", "e7"),
+    P(`Error mitigation asks how much of that loss can be won back. ${F("e7b")} follows the XY circuit at depth 1 through ` +
+      `the three stages of Section 5.1.4. The noisy circuit gives ${f2(xy.raw)}. Readout correction alone adds little ` +
+      `(${f2(xy.readout)}). Post-selection does most of the work and lifts quality to ` +
+      `${f2(xy.readout_postselect)}, above a random choice, because the XY circuit conserves the number of selected ` +
+      `pairs and any other count is a detected error. Zero-noise extrapolation adds the rest and reaches ` +
+      `${f2(xy.readout_postselect_zne)}, against ${f2(xy.ideal_postselect)} without noise.${hwRun ? ` On the real ` +
+      `${hwRun.hardware_backend} processor the mitigated circuit reached ${f2(hwRun.hardware_mitigated)} (raw ` +
+      `${f2(hwRun.hardware_raw)}).` : ""} The penalty form only reaches ${f2(pen.readout_postselect_zne)}, the level ` +
+      `of a random valid choice, because even noise-free it has no edge once invalid samples are discarded.`),
+    ...figure("fig_e7b_mitigation.png", "XY QAOA on the IBM noise model after each mitigation stage", "e7b"),
+    P(`E7 and E7b solve isolated 12-pair problems. E15 asks whether QAOA can make the selection the pipeline actually ` +
+      `uses, 48 of 200 candidates, while every circuit stays hardware-sized. It runs the decomposition of Section 4.2.3 ` +
+      `on ${T.e15.n_cohorts} cohorts, two runs each, ${T.e15.blocks} blocks per run, from the top-K start. The ` +
+      `controls see the same blocks: ${T.e15.shots} uniformly random valid selections, which is what QAOA's sampling ` +
+      `must beat, and exhaustive search, the best any sub-solver can do.`),
+    ...figure("fig_e15_blocks.png", "How often 32 samples contained the best answer for a 12-pair block", "e15"),
+    P(`${F("e15")} compares the samples directly. QAOA's best sample was the block's optimum in ` +
+      `${(100 * e15.qaoa_p2.mean_is_block_optimum).toFixed(1)}% of blocks at depth 2 and ` +
+      `${(100 * e15.qaoa_p1.mean_is_block_optimum).toFixed(1)}% at depth 1; 32 random selections on the same blocks ` +
+      `contained it ${(100 * T.e15.paired_random_block_optimum).toFixed(1)}% of the time. QAOA's distribution ` +
+      `concentrates on good selections, so it needs fewer samples. ${TB("lns")} shows where the whole search ends.`),
+    tableCaption(`How the full 48-pair selection ends (${T.e15.n_cohorts} cohorts, 2 runs each)`, "lns"),
+    table(["Method", "Matches or beats annealing", "Distinct SNPs", "Planted pairs kept", "Seconds per run"], [
+      ["QAOA, depth 2", `${e15.qaoa_p2.beats_annealing} of ${e15.qaoa_p2.n_runs}`, Math.round(e15.qaoa_p2.distinct_snps), pc(e15.qaoa_p2.recall), e15.qaoa_p2.seconds.toFixed(1)],
+      ["QAOA, depth 1", `${e15.qaoa_p1.beats_annealing} of ${e15.qaoa_p1.n_runs}`, Math.round(e15.qaoa_p1.distinct_snps), pc(e15.qaoa_p1.recall), e15.qaoa_p1.seconds.toFixed(1)],
+      ["Exhaustive search", `${e15.exact.beats_annealing} of ${e15.exact.n_runs}`, Math.round(e15.exact.distinct_snps), pc(e15.exact.recall), e15.exact.seconds.toFixed(1)],
+      ["Random sampling", `${e15.random.beats_annealing} of ${e15.random.n_runs}`, Math.round(e15.random.distinct_snps), pc(e15.random.recall), e15.random.seconds.toFixed(1)],
+      ["Simulated annealing (reference)", "", Math.round(e15.sa.distinct_snps), pc(e15.sa.recall), ""],
+      ["Top-K (the start)", "", Math.round(e15.topk.distinct_snps), pc(e15.topk.recall), ""],
+    ], [3086, 1900, 1400, 1600, 1400], { shadeFirst: true, aligns: [AlignmentType.LEFT, AlignmentType.CENTER,
+      AlignmentType.CENTER, AlignmentType.CENTER, AlignmentType.CENTER] }),
+    P(`QAOA at depth 2 reaches the same objective as simulated annealing on average and matches or beats it in ` +
+      `${e15.qaoa_p2.beats_annealing} of ${e15.qaoa_p2.n_runs} runs; random sampling with the same budget does so in ` +
+      `${e15.random.beats_annealing}. Every method removes the redundancy of top-K (${Math.round(e15.sa.distinct_snps)} ` +
+      `distinct SNPs instead of ${Math.round(e15.topk.distinct_snps)}). The margins are small because a 12-pair block has ` +
+      `only 495 valid answers, but the experiment shows that 12-qubit circuits can make the real selection end to end. ` +
+      `No speed-up is claimed: every circuit in this section is small enough to simulate exactly on a laptop.`,
+    { before: 160 }),
 
     H2("5.7 Real Genomes, Fairness and Robustness"),
-    P(`On the real 1000 Genomes samples the clinical-plus-genetic model reaches AUC ${f3(T.e9.SAS.M3_additive[0])} in ` +
-      `South Asians and ${f3(T.e9.AFR.M3_additive[0])} in Africans (E9; ${F("e9")}), the expected loss for a South ` +
-      `Asian-trained model. Within South Asia (E11; ${F("e11")}) the genetic model improves on clinical factors in ` +
-      `${allGain ? "every" : "most"} population and in both sexes; accuracy is lowest in the ${POPS[worstPop]} samples ` +
-      `(AUC ${f2(e11[worstPop].auc_genetic)}) and highest in the ${POPS[bestPop]} samples ` +
-      `(${f2(e11[bestPop].auc_genetic)}), differences within sampling noise for about 100 people per group. Predicted ` +
-      `risks run about ${Math.round(100 * (1 - e11.all.oe[0]))}% high on real genomes, equally in every group, so local ` +
-      `recalibration, not a group-specific fix, is the remedy.`),
-    P(`Because outcomes are simulated, E12 changes one assumption at a time across ${nSet} settings (${F("e12")}). ` +
-      `Genetics beats clinical factors in ${nAucWin} of ${nSet} settings (gain ${f3(Math.min(...dAuc))} to ` +
-      `${f3(Math.max(...dAuc))} AUC) and catches more lean cases than the IDRS in ${nLeanWin} of ${nSet}. Interaction ` +
-      `discovery, in contrast, depends strongly on effect size (EDR@10 from ${f2(Math.min(...edrs))} to ` +
-      `${f2(Math.max(...edrs))}), which is reported as a limit.`),
-    ...figure("fig_e9_real_genomes.png", 560, "E9: models trained on synthetic South Asians, tested on real genomes of five ancestries", "e9"),
-    ...figure("fig_e11_fairness.png", 620, "E11: accuracy, cases caught and calibration by South Asian population and sex", "e11"),
-    ...figure("fig_e12_robustness.png", 620, "E12: the main conclusions under thirteen alternative simulator settings", "e12"),
+    P(`So far the test people have been synthetic. ${F("e9")} moves to the real genomes of 1000 Genomes, with outcomes ` +
+      `from the same simulator, for models trained on synthetic South Asians. In every ancestry the clinical-plus-genetic ` +
+      `model beats a PRS alone. It is most accurate in South Asians (${f3(T.e9.SAS.M3_additive[0])}), the group it was ` +
+      `trained for, and least accurate in Africans (${f3(T.e9.AFR.M3_additive[0])}), the expected loss when a model moves ` +
+      `far from its training ancestry and a warning against using it outside South Asians without retraining.`),
+    ...figure("fig_e9_real_genomes.png", "Models trained on synthetic South Asians, tested on real genomes", "e9"),
+    P(`South Asia is itself diverse. ${F("e11")} and ${TB("fairness")} ask whether the model serves all its groups ` +
+      `(E11). The genetic model improves on clinical factors in ${allGain ? "every" : "most"} population and in both ` +
+      `sexes. Accuracy is lowest in the ${POPS[worstPop]} samples (AUC ${f2(e11[worstPop].auc_genetic)}) and highest in ` +
+      `the ${POPS[bestPop]} samples (${f2(e11[bestPop].auc_genetic)}), differences within sampling noise for about 100 ` +
+      `people per group. The ratio of observed to predicted cases in ${TB("fairness")} is about ` +
+      `${f2(e11.all.oe[0])}: predicted risks run about ${Math.round(100 * (1 - e11.all.oe[0]))}% high on real genomes, ` +
+      `and equally so in every group, so local recalibration, not a group-specific fix, is the remedy.`),
+    ...figure("fig_e11_fairness.png", "Accuracy by South Asian population and by sex, on real genomes", "e11"),
+    tableCaption("Calibration and cases caught on real South Asian genomes", "fairness"),
+    table(["Group", "People", "AUC, clinical", "AUC, with genetics", "Observed / predicted", "Cases caught in top 20%"],
+      Object.entries(groups).map(([k, n]) => [n, T.e11.n[k], f2(e11[k].auc_clinical), f2(e11[k].auc_genetic), f2(e11[k].oe[0]),
+        `${pc(e11[k].capture_clinical[0])} → ${pc(e11[k].capture_genetic[0])}`]),
+      [2386, 950, 1200, 1400, 1450, 2000], { shadeFirst: true, aligns: [AlignmentType.LEFT, ...Array(5).fill(AlignmentType.CENTER)] }),
+    P(`Because outcomes are simulated, the main risk is that the conclusions depend on the simulator. E12 changes one ` +
+      `assumption at a time across ${nSet} settings. ${F("e12_auc")} shows the AUC that genetics adds in each setting, ` +
+      `sorted by size. Every bar is positive: the gain ranges from ${f3(Math.min(...dAuc))} to ${f3(Math.max(...dAuc))}, ` +
+      `and it stays positive even with no mechanism interaction at all.`, { before: 200 }),
+    ...figure("fig_e12_auc.png", "AUC gained by adding genetics, in each of 13 simulator settings", "e12_auc"),
+    P(`${F("e12_lean")} repeats the check for the clinical result: how many more lean cases the genetic model catches ` +
+      `than the IDRS. It wins in ${nLeanWin} of ${nSet} settings, by ${Math.round(Math.min(...dLean))} to ` +
+      `${Math.round(Math.max(...dLean))} percentage points. Interaction discovery is less forgiving: EDR@10 runs from ` +
+      `${f2(Math.min(...edrs))} to ${f2(Math.max(...edrs))} across the settings, because it depends strongly on the true ` +
+      `effect size. We report this as a limit of the work.`),
+    ...figure("fig_e12_lean.png", "Extra lean cases caught compared with the IDRS, in each setting", "e12_lean"),
 
     H2("5.8 Consumer DNA Files and Lifestyle What-ifs"),
-    P(`E13 holds out 100 real South Asian genomes, builds the LD panel from the other 389, and masks each genome to ` +
-      `25%, 45% or 65% coverage (${F("e13")}). At 45%, typical of a consumer chip, LD imputation raises the PRS ` +
-      `correlation with the full genome from ${f3(m13("mean_fill", PRS_T))} to ${f3(m13("ld_impute", PRS_T))}, cuts ` +
-      `the error in the reported risk percentile from ${m13("mean_fill", ERR_T).toFixed(1)} to ` +
-      `${m13("ld_impute", ERR_T).toFixed(1)} points, and keeps ${pc(m13("ld_impute", HIGH_T))} of truly high-risk ` +
-      `people flagged, against ${pc(m13("mean_fill", HIGH_T))} with average filling.`),
-    ...figure("fig_e13_imputation.png", 620, "E13: partial DNA files, average filling against LD imputation", "e13"),
-    P(`The app's lifestyle what-ifs match the simulator's true effect (E10; ${F("e10")}): a waist 5 cm smaller changes ` +
-      `risk by ${rel("waist_minus_5cm", "model")} in the app against ${rel("waist_minus_5cm", "true")} in truth, and ` +
-      `regular exercise by ${rel("vigorous_exercise", "model")} against ${rel("vigorous_exercise", "true")}, a ` +
-      `conservative estimate. The size of these changes is consistent with the Indian Diabetes Prevention Programme ` +
+    P(`A consumer DNA file holds only part of the genome that a risk score needs. E13 tests what this does to a report. ` +
+      `It holds out 100 real South Asian genomes, builds the LD panel from the other 389, and hides variants so that ` +
+      `25%, 45% or 65% remain; 45% is typical of a consumer chip. ${F("e13_error")} shows the error in the risk ` +
+      `percentile a person would see. At 45% coverage it is ${m13("mean_fill", ERR_T).toFixed(1)} points if missing ` +
+      `variants are filled with the population average, and ${m13("ld_impute", ERR_T).toFixed(1)} with LD imputation.`),
+    ...figure("fig_e13_error.png", "Error in the reported risk percentile, by coverage of the DNA file", "e13_error"),
+    P(`${F("e13_flagged")} shows what that means for a person. Average filling pulls every score towards the middle, ` +
+      `so high-risk people drop out of the high-risk group: at 45% coverage only ${pc(m13("mean_fill", HIGH_T))} stay ` +
+      `flagged. LD imputation keeps ${pc(m13("ld_impute", HIGH_T))}, and raises the correlation with the full-genome ` +
+      `score from ${f3(m13("mean_fill", PRS_T))} to ${f3(m13("ld_impute", PRS_T))}.`),
+    ...figure("fig_e13_flagged.png", "Truly high-risk people still flagged, by coverage of the DNA file", "e13_flagged"),
+    P(`A report should also be right about what a person can change. Because the simulator holds the true effect of ` +
+      `each change, E10 can check the app's what-ifs directly (${F("e10")}). A waist 5 cm smaller lowers risk by ` +
+      `${rel("waist_minus_5cm", "model").replace("−", "")} in the app and ${rel("waist_minus_5cm", "true").replace("−", "")} ` +
+      `in truth. For regular exercise the figures are ${rel("vigorous_exercise", "model").replace("−", "")} and ` +
+      `${rel("vigorous_exercise", "true").replace("−", "")}, and for both changes ` +
+      `${rel("both", "model").replace("−", "")} and ${rel("both", "true").replace("−", "")}. The app errs on the ` +
+      `cautious side, and the size of these changes is consistent with the Indian Diabetes Prevention Programme ` +
       `${cite("ramachandran")}.`),
-    ...figure("fig_e10_lifestyle.png", 620, "E10: mean risk by genetic risk quintile before and after each change, app estimate against the true effect", "e10"),
+    ...figure("fig_e10_lifestyle.png", "Drop in risk from each lifestyle change, app against the true effect", "e10"),
 
     H2("5.9 Testing and Validation"),
+    P("The code is tested at four levels:", { after: 60, keepNext: true }),
     ...bullets([
-      `**${nTests} automated tests:** unit tests (QUBO, score test, metrics, simulator, IDRS, LD imputation, PLINK ` +
-        "file decoding, readout correction, post-selection, extrapolation), equivalence tests (our simulator against " +
-        "PennyLane, our QAOA against Qiskit, the Dicke circuit, circuit folding), an end-to-end pipeline test, and " +
+      `${nTests} automated tests: unit tests (QUBO, score test, metrics, simulator, IDRS, LD imputation, PLINK file ` +
+        "decoding, readout correction, post-selection, extrapolation, QAOA decomposition), equivalence tests (our " +
+        "circuit simulators against PennyLane, our QAOA against Qiskit, the Dicke circuit, circuit folding), an " +
+        "end-to-end pipeline test, and " +
         "parser, API and PDF tests including partial chip files, duplicate positions and wrong genome builds.",
-      "**Continuous integration:** GitHub Actions installs the project from scratch and runs the linter and all tests on every push.",
-      "**Reproducibility:** a re-run matches the stored result bit for bit; re-running the data pipeline from the raw " +
+      "Continuous integration: GitHub Actions installs the project from scratch and runs the linter and all tests on every push.",
+      "Reproducibility: a re-run matches the stored result bit for bit; re-running the data pipeline from the raw " +
         "downloads reproduced every processed file; the imputation code reproduces PLINK's PRS exactly (r = 1.000).",
-      `**Code:** ${pyFiles.length} Python modules (${srcLines.toLocaleString("en-IN")} lines), ${nScripts} scripts, one \`make\` command per step, and a Docker image.`,
+      `Code: ${pyFiles.length} Python modules (${srcLines.toLocaleString("en-IN")} lines), ${nScripts} scripts, one \`make\` command per step, and a Docker image.`,
     ]),
     P(`Testing found the problems in ${TB("problems")}; all are fixed and covered by tests.`, { before: 80 }),
     tableCaption("Problems found in testing and their fixes", "problems"),
@@ -938,20 +1244,21 @@ function chapter6() {
   return [
     H1("CHAPTER 6: CONCLUSIONS AND FUTURE SCOPE"),
     H2("6.1 Work Accomplished"),
-    P(`${TB("objectives")} compares each objective approved at the mid-semester evaluation with its status then and now.`),
+    P(`${TB("objectives")} compares each objective of Section 3.3 with its status then and now.`),
     tableCaption("Status of the approved objectives", "objectives"),
-    table(["#", "Approved objective", "Mid-sem", "Now", "Evidence"], [
-      ["1", "Genomic data pipeline: QC, SNP selection, pair ranking, labels", "100%", "Complete, rebuilt on real data", "`make data` rebuilds every file from the raw downloads; a full re-run gave identical output"],
-      ["2", "Variational quantum circuit encoder for SNP pairs", "20%", "Complete", "8-qubit circuit; our simulator matches PennyLane to 10^{−6} and trains 7× faster"],
-      ["3", "Classical baselines (LR, RF, XGBoost, SVM) and PRS", "15%", "Complete", "Also the IDRS, a BMI rule and a clinical-factor model"],
-      ["4", "Hybrid stacking ensemble", "0%", "Complete", `Stacked model has the best AUC, ${f3(auc("M12_stack"))}`],
-      ["5", "SHAP-guided adaptive pair refinement", "0%", "Built, tested, replaced", `SHAP ranking found ${pc(edrShap)} of planted pairs vs ${pc(edrScore)} for the score test; SHAP kept for per-person explanations`],
-      ["6", "Benchmark: AUC-ROC, F1, EDR@K, DeLong, McNemar", "10%", "Complete", "17 models, 15 experiments (E0–E13), Holm-corrected tests"],
-    ], [450, 2700, 950, 1500, 3786], { aligns: [AlignmentType.CENTER, AlignmentType.LEFT, AlignmentType.CENTER,
+    table(["Obj.", "Approved objective", "Mid-sem", "Now", "Evidence"], [
+      [ROMAN[0], "Genomic data pipeline: QC, SNP selection, pair ranking, labels", "100%", "Complete, rebuilt on real data", "`make data` rebuilds every file from the raw downloads; a full re-run gave identical output"],
+      [ROMAN[1], "Variational quantum circuit encoder for SNP pairs", "20%", "Complete", "8-qubit circuit; our simulator matches PennyLane to 10^{−6} and trains 7× faster"],
+      [ROMAN[2], "Classical baselines (LR, RF, XGBoost, SVM) and PRS", "15%", "Complete", "Also the IDRS, a BMI rule and a clinical-factor model"],
+      [ROMAN[3], "Hybrid stacking ensemble", "0%", "Complete", `Stacked model has the best AUC, ${f3(auc("M12_stack"))}`],
+      [ROMAN[4], "SHAP-guided adaptive pair refinement", "0%", "Built, tested, replaced", `SHAP ranking found ${pc(edrShap)} of planted pairs vs ${pc(edrScore)} for the score test; SHAP kept for per-person explanations`],
+      [ROMAN[5], "Benchmark: AUC-ROC, F1, EDR@K, DeLong, McNemar", "10%", "Complete", "17 models, 17 experiments (E0–E15), Holm-corrected tests"],
+    ], [720, 2600, 1100, 1400, 3566], { aligns: [AlignmentType.CENTER, AlignmentType.LEFT, AlignmentType.CENTER,
       AlignmentType.LEFT, AlignmentType.LEFT] }),
     P("Beyond the approved objectives the project added QAOA with error mitigation, clinical factors and the IDRS, " +
-      "tests on real genomes, fairness and robustness studies, LD imputation for consumer DNA files, and a complete " +
-      "application with a PDF report and a Docker image.", { before: 120 }),
+      "tests on real genomes, fairness and robustness studies, LD imputation for consumer DNA files, two experiments " +
+      "that measure what the quantum parts contribute (E14, E15), and a complete application with a PDF report and a " +
+      "Docker image.", { before: 120 }),
     H2("6.2 Conclusions"),
     P(`QGenomix is a complete, tested system built around a clear clinical question. On simulated outcomes over real ` +
       `genotypes, genetic scores add substantially to India's screening questionnaire and nearly double the share of ` +
@@ -959,17 +1266,26 @@ function chapter6() {
       `${nAucWin} of ${nSet} alternative simulator settings and holds in every South Asian population tested. The ` +
       `interaction search finds planted gene pairs reliably and stays quiet when there are none. The application turns ` +
       `a consumer DNA file into a calibrated, explained report, with LD imputation for partial files. The quantum ` +
-      `methods are implemented with care and with classical controls; they show no advantage yet, and error ` +
-      `mitigation recovers most of the quality that hardware noise destroys. The main limit is that outcomes are ` +
+      `parts do what they are there for: entanglement is what lets the circuit capture gene–gene interaction (E14), ` +
+      `and 12-qubit QAOA circuits make the full pair selection as well as simulated annealing (E15). They show no ` +
+      `speed-up yet, because every circuit here can be simulated exactly, and error mitigation recovers most of the ` +
+      `quality that hardware noise destroys. The main limit is that outcomes are ` +
       `simulated; validation on a consented Indian cohort is the next step beyond this course.`),
     H2("6.3 Environmental / Social Benefits"),
     P("Earlier identification of lean South Asians at high risk allows lifestyle change before diabetes develops, which " +
       "is cheaper and kinder than treating its complications. QGenomix needs only a consumer DNA file and six questions, " +
       "runs on an ordinary laptop with a small energy footprint, processes genetic data in memory without storing it, " +
       "and is open source, so it could be adapted for public-health screening at low cost."),
+    ...(PANEL ? finalDemonstration() : futureWorkPlan()),
+  ];
+}
+
+function futureWorkPlan() {
+  return [
     H2("6.4 Future Work Plan"),
-    P("The final panel evaluation is about two weeks away (around 9 November 2026). Two features have been kept for " +
-      `the panel because each needs an account in the team's own name; both are built and rehearsed (${TB("panel")}).`),
+    P("The final panel evaluation is around 9 November 2026. Two features have been kept for the panel because each " +
+      `needs an account in the team's own name; both are built and rehearsed (${TB("panel")}). ${TB("schedule")} gives ` +
+      "the plan up to the panel."),
     tableCaption("Features kept for the final panel", "panel"),
     table(["Feature", "What is ready", "What remains", "Effort"], [
       hwRun
@@ -979,9 +1295,9 @@ function chapter6() {
     ], [2000, 2900, 3486, 1000], { shadeFirst: true }),
     tableCaption("Schedule to the final panel", "schedule"),
     table(["Dates", "Work"], [
-      ["28–31 October", "IBM hardware run and analysis; public demo deployment; update figures and report"],
-      ["1–5 November", "Final report; IEEE-format paper draft; slides; three-minute demo video"],
-      ["6–9 November", "Full test run on a clean machine; timed rehearsal with each member presenting one part"],
+      ["4–6 November", "IBM hardware run and public demo under team accounts; update figures, reports and slides"],
+      ["7–8 November", "Full test run on a clean machine; timed rehearsal with each member presenting one part"],
+      ["9 November", "Final panel evaluation"],
     ], [2000, 7386], { shadeFirst: true }),
     P("Beyond the course, the natural next steps are validation on real Indian patients (for example GenomeIndia data " +
       "through the Indian Biological Data Centre), imputation with a larger reference panel, extension to other " +
@@ -989,28 +1305,72 @@ function chapter6() {
   ];
 }
 
+function finalDemonstration() {
+  return [
+    H2("6.4 Final Demonstration"),
+    P(`The demonstration runs on one laptop with no internet connection, and every part of it is one command ` +
+      `(${TB("demo")}). It follows the lean woman of Section 4.3 from her DNA file to her report, then shows the ` +
+      "evidence behind each claim."),
+    tableCaption("What the final demonstration shows", "demo"),
+    table(["Part", "What is shown", "Command"], [
+      ["Risk report", "A lean woman flagged high risk; her mechanism profile, what-ifs and PDF report", "`make app`"],
+      ["REST API", "The same report as JSON and as a PDF, from an uploaded DNA file", "`make api`"],
+      ["Quantum evidence", "Entanglement capturing interaction (E14) and QAOA making the full pair selection (E15), rerun live", "`make quantum` (about 5 minutes)"],
+      ["Quantum hardware", hwRun ? `QAOA with error mitigation on the real ${hwRun.hardware_backend} processor` : "QAOA with error mitigation on IBM's Kingston noise model; the same script runs on a real IBM processor with the team's account", hwRun ? "`scripts/run_ibm.py`" : "`make rehearse-ibm`"],
+      ["Tests", `All ${nTests} automated tests, from the QUBO to the PDF report`, "`make test`"],
+    ], [1900, 5186, 2300], { shadeFirst: true }),
+    P(hwRun
+      ? `The run on the ${hwRun.hardware_backend} processor is reported in ${F("e7b")}.`
+      : "A run on a real IBM processor needs the team's own IBM Quantum account, so it is not part of this report. " +
+        "The script is ready and rehearsed; once the account exists, one batched job (about 2 of the 10 free QPU " +
+        `minutes) adds its result to ${F("e7b")} and to this report automatically.`, { before: 120 }),
+    H2("6.5 Future Scope"),
+    P("Five directions would take QGenomix from a research prototype towards real use:", { after: 60, keepNext: true }),
+    ...enumerated([
+      "Validation on real Indian patients, for example GenomeIndia data through the Indian Biological Data Centre: the step that would turn simulated findings into clinical evidence.",
+      "Imputation with a larger reference panel, so that consumer DNA files with less coverage still give reliable reports.",
+      "Models for other ancestries and related traits such as gestational diabetes.",
+      "Larger quantum runs as hardware improves: bigger QAOA blocks on real processors, and the encoder on hardware instead of a simulator.",
+      "A research paper on the screening result and on the controlled tests of the quantum methods.",
+    ]),
+  ];
+}
+
 // =====================================================================
 // APPENDICES AND REMARKS
 // =====================================================================
+// APA text with *italic* markers, as written by build_references.py
+const apaRuns = (text, base) => text.split("*").map((part, i) => new TextRun({ ...base, text: part, italics: i % 2 === 1 || undefined }));
 function appendices() {
   return [
     H1("APPENDIX A: REFERENCES"),
     ...S.refOrder.map((k, i) => new Paragraph({
-      spacing: { after: 80, line: 260 }, indent: { left: 560, hanging: 560 }, tabStops: [{ type: TabStopType.LEFT, position: 560 }],
-      children: [new TextRun({ text: `[${i + 1}]\t`, size: 22 }), ...runs(REFS[k], { size: 22 })],
+      spacing: { after: 80, line: 260 }, indent: { left: 620, hanging: 620 }, alignment: AlignmentType.LEFT,
+      tabStops: [{ type: TabStopType.LEFT, position: 620 }],
+      children: [new Bookmark({ id: `ref_${k}`, children: [new TextRun({ size: 22, children: [`[${i + 1}]`, new Tab()] })] }),
+        ...apaRuns(REFS[k].apa, { size: 22 })],
     })),
   ];
 }
+const remarkLines = (n) => new Table({ // ruled lines to write remarks on
+  width: { size: CONTENT_W, type: WidthType.DXA }, columnWidths: [CONTENT_W],
+  rows: Array.from({ length: n }, () => new TableRow({ height: { value: 480, rule: "exact" }, children: [
+    new TableCell({ width: { size: CONTENT_W, type: WidthType.DXA },
+      borders: { top: NONE, left: NONE, right: NONE, bottom: BORDER }, children: [new Paragraph({ children: [] })] }),
+  ] })),
+});
 function remarksPage() {
+  if (PANEL) {
+    return [
+      H1("PANEL'S REMARKS"),
+      remarkLines(10),
+      ...[1, 2, 3].flatMap((i) => [line(`Panel member ${i}`), line("Signature", 160)]),
+      line("Date"),
+    ];
+  }
   return [
     H1("MENTOR'S REMARKS"),
-    new Table({
-      width: { size: CONTENT_W, type: WidthType.DXA }, columnWidths: [CONTENT_W],
-      rows: Array.from({ length: 12 }, () => new TableRow({ height: { value: 480, rule: "exact" }, children: [
-        new TableCell({ width: { size: CONTENT_W, type: WidthType.DXA },
-          borders: { top: NONE, left: NONE, right: NONE, bottom: BORDER }, children: [new Paragraph({ children: [] })] }),
-      ] })),
-    }),
+    remarkLines(12),
     line("Faculty Mentor"),
     new Paragraph({ spacing: { before: 120 }, children: [new TextRun(`${MENTOR}, Assistant Professor, CSED, TIET, Patiala`)] }),
     line("Signature"),
@@ -1027,6 +1387,8 @@ function build(pages) {
   const front = [...abstractPage(), ...declarationPage(), ...acknowledgementPage()];
   const body = [...chapter1(), ...chapter2(), ...chapter3(), ...chapter4(), ...chapter5(), ...chapter6(),
     ...appendices(), ...remarksPage()];
+  const unused = Object.keys(REFS).filter((k) => !S.refOrder.includes(k));
+  if (unused.length) console.warn("references never cited, left out of the list:", unused.join(", "));
   const listsStart = S.toc.length;
   const lists = [...listPage("LIST OF FIGURES", S.figs, "Figure"), ...listPage("LIST OF TABLES", S.tabs, "Table"),
     ...abbreviationsPage()];
@@ -1039,14 +1401,17 @@ function build(pages) {
   const footer = () => new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER,
     children: [new TextRun({ children: [PageNumber.CURRENT], size: 20 })] })] });
   const team = TEAM.map(([, n]) => n).join(", ");
+  const tocStyle = (id, name, run, paragraph) => ({ id, name, basedOn: "Normal", next: "Normal", run, paragraph });
   return new Document({
     creator: team,
     lastModifiedBy: team,
-    title: `${FULL_TITLE}: Mentor Evaluation Report`,
+    title: `${FULL_TITLE}: ${EVALUATION} Report`,
     subject: "Capstone Project CPG 218, Computer Science and Engineering Department, TIET, Patiala",
     keywords: "type 2 diabetes, South Asians, polygenic risk, QAOA, variational quantum circuit",
+    features: { updateFields: true }, // Word refreshes the contents, the lists and the numbers when it opens the file
     styles: {
       default: { document: { run: { font: FONT, size: 24 } } },
+      characterStyles: [{ id: "IndexLink", name: "Index Link", basedOn: "DefaultParagraphFont" }],
       paragraphStyles: [
         { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
           run: { font: FONT, size: 32, bold: true, color: "000000" }, paragraph: { spacing: { before: 240, after: 200 }, outlineLevel: 0 } },
@@ -1054,13 +1419,22 @@ function build(pages) {
           run: { font: FONT, size: 28, bold: true, color: "000000" }, paragraph: { spacing: { before: 240, after: 100 }, outlineLevel: 1 } },
         { id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true,
           run: { font: FONT, size: 24, bold: true, color: "000000" }, paragraph: { spacing: { before: 180, after: 80 }, outlineLevel: 2 } },
+        { id: "ContentsTitle", name: "Contents Title", basedOn: "Normal", next: "Normal",
+          run: { font: FONT, size: 32, bold: true, color: "000000" },
+          paragraph: { alignment: AlignmentType.CENTER, spacing: { before: 240, after: 200 } } },
+        { id: "Caption", name: "caption", basedOn: "Normal", next: "Normal", quickFormat: true,
+          run: { font: FONT, size: 22, color: "000000" }, paragraph: { spacing: { after: 120 } } },
+        tocStyle("TOC1", "toc 1", { bold: true, size: 22 }, { spacing: { before: 80, after: 60 } }),
+        tocStyle("TOC2", "toc 2", { size: 22 }, { indent: { left: 360 }, spacing: { after: 40 } }),
+        tocStyle("TOC3", "toc 3", { size: 22 }, { spacing: { after: 60 } }),
+        tocStyle("TableofFigures", "table of figures", { size: 22 }, { spacing: { after: 60 } }),
       ],
     },
     numbering: { config: [
       { reference: "bullets", levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT,
         style: { paragraph: { indent: { left: 540, hanging: 300 } } } }] },
-      { reference: "numbers", levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
-        style: { paragraph: { indent: { left: 540, hanging: 360 } } } }] },
+      { reference: "roman", levels: [{ level: 0, format: LevelFormat.LOWER_ROMAN, text: "(%1)", alignment: AlignmentType.LEFT,
+        style: { paragraph: { indent: { left: 660, hanging: 540 } } } }] },
     ] },
     sections: [
       { // front matter: lower-case roman page numbers, none on the cover
@@ -1100,9 +1474,9 @@ function locatePages(pdfText) {
       if (i >= 0) { found[e.key] = label(i); cursor = i; }
     }
   }
-  for (const [kind, list] of [["figure", S.figs], ["table", S.tabs]]) {
+  for (const [kind, list_] of [["figure", S.figs], ["table", S.tabs]]) {
     const prefix = kind === "figure" ? "Figure" : "Table";
-    for (const it of list) {
+    for (const it of list_) {
       const i = pages.findIndex((ls, j) => j >= bodyStart && ls.some((l) => l.startsWith(`${prefix} ${it.n}:`)));
       if (i >= 0) found[`${kind}:${it.n}`] = label(i);
     }

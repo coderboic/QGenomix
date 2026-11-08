@@ -31,7 +31,9 @@ been clinically validated, and must not be used for diagnosis or treatment decis
 ## Performance (simulated outcomes)
 * Deployed bundle: AUC 0.876 on its 4,000-person held-out calibration set (`bundle/meta.json`).
 * Benchmark (E1, 3 seeds × 2,000 held-out synthetic South Asians): IDRS 0.761, clinical factors only 0.812,
-  clinical + PRS + mechanism scores 0.874, XGBoost + VQC features 0.867. The quantum features give no significant gain.
+  clinical + PRS + mechanism scores 0.874, XGBoost + VQC features 0.867. The quantum features give no significant gain
+  here; on an outcome made only of gene-gene interaction (E14) the entangled circuit reaches 0.673 against 0.523
+  without entanglement.
 * Real 1000 Genomes genomes (E9): clinical + genetic model AUC 0.881 in South Asians, 0.85-0.87 in East Asian,
   European and admixed American samples, 0.792 in African samples.
 * Lean cases (BMI < 23) caught in the top 20% of risk: 58% with genes, 35% clinical factors only, 30% IDRS,

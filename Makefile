@@ -1,6 +1,6 @@
 PY := .venv/bin/python
 
-.PHONY: setup data test experiments figures bundle impute e10 extras personas app api docker rehearse-ibm all
+.PHONY: setup data test experiments figures bundle impute e10 extras quantum personas app api docker rehearse-ibm all
 
 setup:            ## create the virtual environment and install dependencies
 	uv venv --python 3.12 .venv
@@ -18,6 +18,9 @@ experiments:      ## E0-E9 (about 1 hour on a 16-core laptop)
 
 extras:           ## E7b mitigation, E11 fairness, E12 robustness, E13 imputation (about 1.5 hours; needs E7, bundle)
 	$(PY) scripts/run_experiments.py E13 E11 E12 E7b
+
+quantum:          ## E14 entanglement and interaction, E15 QAOA makes the full pair selection (about 10 minutes)
+	$(PY) scripts/run_experiments.py E14 E15
 
 e10:              ## lifestyle what-if check; needs the bundle
 	$(PY) scripts/run_experiments.py E10
@@ -46,4 +49,4 @@ docker:           ## dashboard + API in containers (needs bundle/ and data/perso
 rehearse-ibm:     ## the IBM hardware run, rehearsed locally on the Kingston noise model (no account needed)
 	$(PY) scripts/run_ibm.py --backend fake_kingston --blocks 0 --depths 1 --shots 1000
 
-all: data test experiments bundle impute e10 extras figures personas
+all: data test experiments bundle impute e10 extras quantum figures personas

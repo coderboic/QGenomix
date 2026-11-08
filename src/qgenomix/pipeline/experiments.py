@@ -13,6 +13,8 @@ E10 lifestyle what-ifs of the deployed app against the simulator's true effect
 E11 fairness across South Asian populations and sexes, on real genomes
 E12 robustness of the conclusions to the simulator's assumptions
 E13 LD-aware imputation of variants missing from consumer DNA files
+E14 entanglement and gene-gene interaction: the circuit with and without CZ gates on a pure-interaction outcome
+E15 the full 48-of-200 pair selection made by 12-qubit QAOA through decomposition, against its controls
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from qgenomix.config import Config
 from qgenomix.data.cohort import load_real, synthetic_sas
@@ -633,4 +636,161 @@ def e13_imputation(cfg: Config, n_test: int = 100, coverages=(0.25, 0.45, 0.65),
            "best_tag_r2_ge_08": float((panel.r2[:, 0] >= 0.8).mean()),
            "prs_check_vs_plink": prs_check, "n_high_risk_full": int(high_full.sum()), "rows": rows}
     save_json(out, _out(cfg, "e13_imputation.json"))
+    return out
+
+
+# ---------------------------------------------------------------- E14
+def _partner_share(F: np.ndarray, D: np.ndarray) -> list[float]:
+    """For each qubit, the share of its output's variance that its partner SNP explains beyond its own SNP."""
+    def explained(f, keys):
+        _, inv = np.unique(keys, return_inverse=True)
+        means = np.bincount(inv, weights=f) / np.bincount(inv)
+        return means[inv].var()
+
+    out = []
+    for w in range(F.shape[1]):
+        f, tot = F[:, w].astype(float), F[:, w].var()
+        own, mate = D[:, w].round().astype(int), D[:, w ^ 1].round().astype(int)
+        out.append(0.0 if tot < 1e-12 else float((explained(f, own * 3 + mate) - explained(f, own)) / tot))
+    return out
+
+
+def e14_entanglement(cfg: Config, seeds=(0, 1, 2), n: int | None = None, strength: float = 0.45) -> dict:
+    """Is entanglement what lets the circuit see a gene-gene interaction?
+
+    Real genotypes (synthetic South Asians) with an outcome made only of interaction: four disjoint
+    cross-mechanism SNP pairs, drawn the way the simulator draws its planted pairs, and a risk that depends only on
+    the products of their standardised dosages, so no SNP is informative on its own. One circuit holds exactly
+    these four pairs. Six models see the same 8 dosages: logistic regression on the dosages, the circuit without
+    and with entanglement (each with a linear head), the classical twin at its usual size and at about the
+    circuit's size, and logistic regression on the four true products (the best a model can do here).
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import roc_auc_score
+    from sklearn.model_selection import train_test_split
+
+    from qgenomix.eval.stats import delong_test
+    from qgenomix.quantum.circuit import FastSimulator
+    from qgenomix.quantum.encoder import encode, pack_pairs, train_encoder
+
+    n = n or cfg["cohort"]["n"]
+    layers = cfg["quantum"]["layers"]
+    models = (("noent", "vqc_noent", 6), ("vqc", "vqc", 6), ("twin", "twin", 6), ("twin_small", "twin", 3))
+    rows, grids = [], {}
+    for seed in seeds:
+        rng = seed_everything(cfg["seed"] + 100 + seed)
+        cohort = synthetic_sas(cfg, n, rng)
+        pairs = np.array(choose_planted_pairs(cohort.snps, tuple(cfg["focus_pair"]), 4,
+                                              cfg["simulator"]["planted_min_maf"], rng))
+        G = cohort.G.astype(np.float32)
+        Z = (G - G.mean(0)) / (G.std(0) + 1e-9)
+        eta = strength * sum(Z[:, a] * Z[:, b] for a, b in pairs)
+        y = rng.binomial(1, 1 / (1 + np.exp(-(eta - 1.0))))
+        X = pack_pairs(G, pairs)
+        tr, te = train_test_split(np.arange(n), test_size=0.2, stratify=y, random_state=seed)
+        row = {"seed": seed, "pairs": pairs.tolist(), "prevalence": float(y.mean())}
+        scores = {}
+        dos = G[:, pairs.ravel()]
+        prods = np.column_stack([Z[:, a] * Z[:, b] for a, b in pairs])
+        for name, M in (("additive", dos), ("products", prods)):
+            lr = LogisticRegression(max_iter=2000).fit(M[tr], y[tr])
+            row[name] = float(roc_auc_score(y[te], lr.decision_function(M[te])))
+        for name, variant, hidden in models:
+            model, tlog = train_encoder(variant, X[tr], None, y[tr], layers=layers, twin_hidden=hidden, seed=seed)
+            with torch.no_grad():
+                score = model(torch.tensor(X[te]), None).numpy()
+            scores[name] = score
+            row[name] = float(roc_auc_score(y[te], score))
+            row[f"{name}_params"] = int(tlog.n_params)
+            if variant != "twin":
+                row[f"{name}_partner_share"] = _partner_share(encode(model, X[te]), X[te, 0])
+            if variant == "vqc" and seed == seeds[0]:
+                # mean output of qubit 0 for each pair of dosages of the first SNP pair: the trained circuit, and
+                # the same angles with the CZ gates removed
+                for label, sim in (("entangled", model.sim), ("cz_removed", FastSimulator(entangle=False))):
+                    grid = np.zeros((3, 3))
+                    for ga in range(3):
+                        for gb in range(3):
+                            Xg = torch.tensor(X[te, 0])
+                            Xg[:, 0], Xg[:, 1] = ga, gb
+                            with torch.no_grad():
+                                grid[ga, gb] = float(sim(Xg, model.W)[:, 0].mean())
+                    grids[label] = grid.tolist()
+        row["delong_p"] = {f"vqc_vs_{other}": float(delong_test(y[te], scores["vqc"], scores[other])["p"])
+                           for other in ("noent", "twin", "twin_small")}
+        rows.append(row)
+        log.info("E14 seed %d: additive %.3f | circuit without entanglement %.3f | with %.3f | twin %.3f, small "
+                 "twin %.3f | true products %.3f", seed, row["additive"], row["noent"], row["vqc"], row["twin"],
+                 row["twin_small"], row["products"])
+    out = {"n": n, "strength": strength, "rows": rows, "qubit0_grid": grids}
+    save_json(out, _out(cfg, "e14_entanglement.json"))
+    return out
+
+
+# ---------------------------------------------------------------- E15
+def e15_qaoa_selection(cfg: Config, seeds=(0, 1, 2), blocks: int = 150, shots: int = 32, depths=(1, 2),
+                       lns_seeds=(0, 1)) -> dict:
+    """Can 12-qubit QAOA make the real 48-of-200 pair selection? Decomposition against its controls.
+
+    For each cohort the search runs as in E1 (score test on the development split, 200 prescreened candidates),
+    then the 48 pairs are chosen from the same start (plain top-K) by large-neighbourhood search whose 12-pair
+    sub-problems are solved by XY-mixer QAOA (depth 1 and 2), by the same number of uniformly random valid
+    selections (the control that isolates what QAOA's sampling adds) and by exhaustive search (the best any
+    sub-solver could do), and, for reference, by the pipeline's simulated annealing with swap polish.
+    """
+    from sklearn.model_selection import train_test_split
+
+    from qgenomix.eval import metrics
+    from qgenomix.search.candidates import cross_mechanism_pairs, pair_features
+    from qgenomix.search.qubo import redundancy_matrix
+    from qgenomix.search.relevance import null_design, relevance, score_test
+    from qgenomix.search.solvers import select_qubo_sa, select_topk
+    from qgenomix.search.xy_qaoa import full_objective, lns
+
+    scfg = cfg["search"]
+    k, lam, tau = scfg["k"], scfg["lam"], scfg.get("tau", 0.1)
+    rows = []
+    for seed in seeds:
+        rng = seed_everything(cfg["seed"] + seed)
+        cohort = synthetic_sas(cfg, cfg["cohort"]["n"], rng)
+        ph = simulate(cohort, _sim(cfg), tuple(cfg["focus_pair"]), rng)
+        y = ph.y.astype(int)
+        dev, _ = train_test_split(np.arange(cohort.n), test_size=cfg["cv"]["test_frac"], stratify=y,
+                                  random_state=seed)
+        cand = cross_mechanism_pairs(cohort.snps)
+        G = cohort.G[dev]
+        _, p = score_test(pair_features(G, cand, center=G.mean(0)), y[dev],
+                          null_design(G, search_covariates(cohort, ph)[dev]))
+        rel = relevance(p)
+        pre = np.argsort(-rel, kind="stable")[: scfg["prescreen"]]
+        R = redundancy_matrix(G, cand[pre], tau)
+        r = rel[pre] / max(rel[pre].max(), 1e-9)
+
+        def describe(x, cand=cand, pre=pre, r=r, R=R, planted=ph.planted):
+            chosen = cand[pre[np.flatnonzero(x)]]
+            return {"objective": full_objective(x, r, R, lam), "distinct_snps": int(len(np.unique(chosen))),
+                    "recall": metrics.recall_of_set(chosen, planted),
+                    "shadow_pairs": metrics.shadow_pairs(chosen, planted)}
+
+        x0 = np.zeros(len(r), bool)
+        x0[select_topk(r, k)] = True
+        sa, _ = select_qubo_sa(r, R, k, lam, num_reads=scfg["sa_reads"], seed=seed)
+        x_sa = np.zeros(len(r), bool)
+        x_sa[sa] = True
+        row = {"seed": seed, "topk": describe(x0), "sa": describe(x_sa), "runs": []}
+        for method, depth in [("qaoa", d) for d in depths] + [("random", 1), ("exact", 1)]:
+            name = f"qaoa_p{depth}" if method == "qaoa" else method
+            for ls in lns_seeds:
+                t0 = time.time()
+                res = lns(x0, r, R, lam, method, blocks=blocks, shots=shots, depth=depth, seed=ls)
+                row["runs"].append({"method": name, "lns_seed": ls, "seconds": time.time() - t0,
+                                    "trace": res["trace"], **describe(res["x"]),
+                                    **{key: v for key, v in res.items() if key.startswith("mean_")}})
+                log.info("E15 seed %d %-7s run %d: objective %.3f (top-K %.3f, annealing %.3f)%s", seed, name, ls,
+                         row["runs"][-1]["objective"], row["topk"]["objective"], row["sa"]["objective"],
+                         f" | block optimum found {res['mean_is_block_optimum']:.2f} vs random "
+                         f"{res['mean_random_is_block_optimum']:.2f}" if method == "qaoa" else "")
+        rows.append(row)
+    out = {"k": k, "blocks": blocks, "shots": shots, "block_size": 12, "rows": rows}
+    save_json(out, _out(cfg, "e15_qaoa_selection.json"))
     return out

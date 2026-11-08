@@ -1,0 +1,162 @@
+{
+ "tribune": {
+  "year": "2023",
+  "apa": "Tribune News Service. (2023, June 10). 60 pc diabetes reversible: ICMR chief on finding 101 mn diabetics in India. *The Tribune*."
+ },
+ "theprint": {
+  "year": "2024",
+  "apa": "Dutta, S. S. (2024, November 14). India had highest number of diabetics in the world in 2022, 62% were not on medication—Lancet report. *ThePrint*."
+ },
+ "idf": {
+  "year": "2025",
+  "apa": "International Diabetes Federation. (2025). *IDF diabetes atlas* (11th ed.). International Diabetes Federation."
+ },
+ "mohan": {
+  "year": "2005",
+  "apa": "Mohan, V., Deepa, R., Deepa, M., Somannavar, S., & Datta, M. (2005). A simplified Indian Diabetes Risk Score for screening for undiagnosed diabetic subjects. *The Journal of the Association of Physicians of India*, *53*, 759-763."
+ },
+ "farhi": {
+  "year": "2014",
+  "apa": "Farhi, E., Goldstone, J., & Gutmann, S. (2014). A quantum approximate optimization algorithm. *arXiv preprint arXiv:1411.4028*."
+ },
+ "lundberg": {
+  "year": "2017",
+  "apa": "Lundberg, S. M., & Lee, S. I. (2017). A unified approach to interpreting model predictions. *Advances in Neural Information Processing Systems*, *30*."
+ },
+ "anjana": {
+  "year": "2023",
+  "apa": "Anjana, R. M., Unnikrishnan, R., Deepa, M., Pradeepa, R., Tandon, N., Das, A. K., ... & Ghosh, S. (2023). Metabolic non-communicable disease health report of India: the ICMR-INDIAB national cross-sectional study (ICMR-INDIAB-17). *The Lancet Diabetes & Endocrinology*, *11*(7), 474-489."
+ },
+ "ncdrisc": {
+  "year": "2024",
+  "apa": "Zhou, B., Rayner, A. W., Gregg, E. W., Sheffer, K. E., Carrillo-Larco, R. M., Bennett, J. E., ... & Ezzati, M. (2024). Worldwide trends in diabetes prevalence and treatment from 1990 to 2022: a pooled analysis of 1108 population-representative studies with 141 million participants. *The Lancet*, *404*(10467), 2077-2093."
+ },
+ "hodgson": {
+  "year": "2025",
+  "apa": "Hodgson, S., Williamson, A., Bigossi, M., Stow, D., Jacobs, B. M., Samuel, M., ... & Finer, S. (2025). Genetic basis of early onset and progression of type 2 diabetes in South Asians. *Nature Medicine*, *31*(1), 323-331."
+ },
+ "narayan": {
+  "year": "2020",
+  "apa": "Narayan, K. M. V., & Kanaya, A. M. (2020). Why are South Asians prone to type 2 diabetes? A hypothesis based on underexplored pathways. *Diabetologia*, *63*(6), 1103-1109."
+ },
+ "caleyachetty": {
+  "year": "2021",
+  "apa": "Caleyachetty, R., Barber, T. M., Mohammed, N. I., Cappuccio, F. P., Hardy, R., Mathur, R., ... & Gill, P. (2021). Ethnicity-specific BMI cutoffs for obesity based on type 2 diabetes risk in England: a population-based cohort study. *The Lancet Diabetes & Endocrinology*, *9*(7), 419-426."
+ },
+ "gujral": {
+  "year": "2018",
+  "apa": "Gujral, U. P., Mohan, V., Pradeepa, R., Deepa, M., Anjana, R. M., & Narayan, K. M. V. (2018). Ethnic differences in the prevalence of diabetes in underweight and normal weight individuals: The CARRS and NHANES studies. *Diabetes Research and Clinical Practice*, *146*, 34-40."
+ },
+ "siddiqui": {
+  "year": "2022",
+  "apa": "Siddiqui, M. K., Anjana, R. M., Dawed, A. Y., Martoeau, C., Srinivasan, S., Saravanan, J., ... & Mohan, V. (2022). Young-onset diabetes in Asian Indians is associated with lower measured and genetically determined beta cell function. *Diabetologia*, *65*(6), 973-983."
+ },
+ "ramachandran": {
+  "year": "2006",
+  "apa": "Ramachandran, A., Snehalatha, C., Mary, S., Mukesh, B., Bhaskar, A. D., & Vijay, V. (2006). The Indian Diabetes Prevention Programme shows that lifestyle modification and metformin prevent type 2 diabetes in Asian Indian subjects with impaired glucose tolerance (IDPP-1). *Diabetologia*, *49*(2), 289-297."
+ },
+ "huerta": {
+  "year": "2025",
+  "apa": "Huerta-Chagoya, A., Kim, J., Mandla, R., Lu, Y., Suzuki, K., Petty, L. E., ... & D-PRISM Consortium. (2025). Multi-ancestry polygenic risk scores for the prediction of type 2 diabetes and complications in diverse ancestries. *medRxiv*."
+ },
+ "loesch": {
+  "year": "2025",
+  "apa": "Loesch, D. P., Garg, M., Matelska, D., Vitsios, D., Jiang, X., Ritchie, S. C., ... & Inouye, M. (2025). Identification of plasma proteomic markers underlying polygenic risk of type 2 diabetes and related comorbidities. *Nature Communications*, *16*(1), 2124."
+ },
+ "khera": {
+  "year": "2018",
+  "apa": "Khera, A. V., Chaffin, M., Aragam, K. G., Haas, M. E., Roselli, C., Choi, S. H., ... & Kathiresan, S. (2018). Genome-wide polygenic scores for common diseases identify individuals with risk equivalent to monogenic mutations. *Nature Genetics*, *50*(9), 1219-1224."
+ },
+ "udler": {
+  "year": "2018",
+  "apa": "Udler, M. S., Kim, J., von Grotthuss, M., Bonàs-Guarch, S., Cole, J. B., Chiou, J., ... & Florez, J. C. (2018). Type 2 diabetes genetic loci informed by multi-trait associations point to disease mechanisms and subtypes: A soft clustering analysis. *PLOS Medicine*, *15*(9), e1002654."
+ },
+ "ruan": {
+  "year": "2022",
+  "apa": "Ruan, Y., Lin, Y. F., Feng, Y. C. A., Chen, C. Y., Lam, M., Guo, Z., ... & Ge, T. (2022). Improving polygenic prediction in ancestrally diverse populations. *Nature Genetics*, *54*(5), 573-580."
+ },
+ "mahajan": {
+  "year": "2022",
+  "apa": "Mahajan, A., Spracklen, C. N., Zhang, W., Ng, M. C. Y., Petty, L. E., Kitajima, H., ... & Morris, A. P. (2022). Multi-ancestry genetic study of type 2 diabetes highlights the power of diverse populations for discovery and translation. *Nature Genetics*, *54*(5), 560-572."
+ },
+ "cordell": {
+  "year": "2009",
+  "apa": "Cordell, H. J. (2009). Detecting gene-gene interactions that underlie human diseases. *Nature Reviews Genetics*, *10*(6), 392-404."
+ },
+ "wan": {
+  "year": "2010",
+  "apa": "Wan, X., Yang, C., Yang, Q., Xue, H., Fan, X., Tang, N. L., & Yu, W. (2010). BOOST: A fast approach to detecting gene-gene interactions in genome-wide case-control studies. *The American Journal of Human Genetics*, *87*(3), 325-340."
+ },
+ "lucas": {
+  "year": "2014",
+  "apa": "Lucas, A. (2014). Ising formulations of many NP problems. *Frontiers in Physics*, *2*, 5."
+ },
+ "hadfield": {
+  "year": "2019",
+  "apa": "Hadfield, S., Wang, Z., O’Gorman, B., Rieffel, E. G., Venturelli, D., & Biswas, R. (2019). From the quantum approximate optimization algorithm to a quantum alternating operator ansatz. *Algorithms*, *12*(2), 34."
+ },
+ "bartschi": {
+  "year": "2019",
+  "apa": "Bärtschi, A., & Eidenbenz, S. (2019). Deterministic preparation of Dicke states. In *International Symposium on Fundamentals of Computation Theory* (pp. 126-139). Springer."
+ },
+ "perez": {
+  "year": "2020",
+  "apa": "Pérez-Salinas, A., Cervera-Lierta, A., Gil-Fuster, E., & Latorre, J. I. (2020). Data re-uploading for a universal quantum classifier. *Quantum*, *4*, 226."
+ },
+ "havlicek": {
+  "year": "2019",
+  "apa": "Havlíček, V., Córcoles, A. D., Temme, K., Harrow, A. W., Kandala, A., Chow, J. M., & Gambetta, J. M. (2019). Supervised learning with quantum-enhanced feature spaces. *Nature*, *567*(7747), 209-212."
+ },
+ "temme": {
+  "year": "2017",
+  "apa": "Temme, K., Bravyi, S., & Gambetta, J. M. (2017). Error mitigation for short-depth quantum circuits. *Physical Review Letters*, *119*(18), 180509."
+ },
+ "bravyi": {
+  "year": "2021",
+  "apa": "Bravyi, S., Sheldon, S., Kandala, A., Mckay, D. C., & Gambetta, J. M. (2021). Mitigating measurement errors in multiqubit experiments. *Physical Review A*, *103*(4), 042605."
+ },
+ "bonet": {
+  "year": "2018",
+  "apa": "Bonet-Monroig, X., Sagastizabal, R., Singh, M., & O'Brien, T. E. (2018). Low-cost error mitigation by symmetry verification. *Physical Review A*, *98*(6), 062339."
+ },
+ "marchini": {
+  "year": "2010",
+  "apa": "Marchini, J., & Howie, B. (2010). Genotype imputation for genome-wide association studies. *Nature Reviews Genetics*, *11*(7), 499-511."
+ },
+ "browning": {
+  "year": "2016",
+  "apa": "Browning, B. L., & Browning, S. R. (2016). Genotype imputation with millions of reference samples. *The American Journal of Human Genetics*, *98*(1), 116-126."
+ },
+ "kg": {
+  "year": "2015",
+  "apa": "1000 Genomes Project Consortium. (2015). A global reference for human genetic variation. *Nature*, *526*(7571), 68-74."
+ },
+ "lambert": {
+  "year": "2021",
+  "apa": "Lambert, S. A., Gil, L., Jupp, S., Ritchie, S. C., Xu, Y., Buniello, A., ... & Inouye, M. (2021). The Polygenic Score Catalog as an open database for reproducibility and systematic evaluation. *Nature Genetics*, *53*(4), 420-425."
+ },
+ "plink": {
+  "year": "2015",
+  "apa": "Chang, C. C., Chow, C. C., Tellier, L. C., Vattikuti, S., Purcell, S. M., & Lee, J. J. (2015). Second-generation PLINK: rising to the challenge of larger and richer datasets. *GigaScience*, *4*(1), s13742-015-0047-8."
+ },
+ "tripod": {
+  "year": "2015",
+  "apa": "Collins, G. S., Reitsma, J. B., Altman, D. G., & Moons, K. G. (2015). Transparent reporting of a multivariable prediction model for individual prognosis or diagnosis (TRIPOD): the TRIPOD statement. *European Urology*, *67*(6), 1142-1151."
+ },
+ "peng": {
+  "year": "2005",
+  "apa": "Peng, H., Long, F., & Ding, C. (2005). Feature selection based on mutual information: criteria of max-dependency, max-relevance, and min-redundancy. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, *27*(8), 1226-1238."
+ },
+ "delong": {
+  "year": "1988",
+  "apa": "DeLong, E. R., DeLong, D. M., & Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: a nonparametric approach. *Biometrics*, *44*(3), 837-845."
+ },
+ "sunxu": {
+  "year": "2014",
+  "apa": "Sun, X., & Xu, W. (2014). Fast implementation of DeLong's algorithm for comparing the areas under correlated receiver operating characteristic curves. *IEEE Signal Processing Letters*, *21*(11), 1389-1393."
+ },
+ "shaw": {
+  "year": "1998",
+  "apa": "Shaw, P. (1998). Using constraint programming and local search methods to solve vehicle routing problems. In *International Conference on Principles and Practice of Constraint Programming* (pp. 417-431). Springer."
+ }
+}

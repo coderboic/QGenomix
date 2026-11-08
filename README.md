@@ -18,8 +18,10 @@ AncestryDNA) are completed by LD imputation, the report downloads as a PDF, and 
 **Headline results** (simulated outcomes on real genotypes): adding genetics to the clinical factors raises AUC
 from 0.812 to 0.874; among lean people who develop diabetes, screening the top 20% by risk catches 58% with
 genetics against 30% with the IDRS and 0% with a BMI rule; the interaction search finds 70-84% of planted gene
-pairs (PLINK BOOST 40-48%); the quantum components show no advantage over their classical controls, and error
-mitigation recovers most of the quality lost to hardware noise.
+pairs (PLINK BOOST 40-48%). The quantum parts do what they are there for: on an outcome made only of gene-gene
+interaction, the entangled circuit reaches AUC 0.673 against 0.523 without entanglement (E14), and 12-qubit QAOA
+circuits make the full 48-of-200 pair selection as well as simulated annealing (E15). On the realistic cohort they tie
+their classical controls, no speed-up is claimed, and error mitigation recovers most of the quality lost to noise.
 
 ## Team
 
@@ -38,8 +40,10 @@ Thapar Institute of Engineering and Technology, Patiala.
 
 | File | What it is |
 | --- | --- |
-| [`QGenomix_Mentor_Evaluation_Report.docx`](QGenomix_Mentor_Evaluation_Report.docx) | Project report: requirements, method, design, all experiments and results |
-| [`QGenomix_Presentation.pptx`](QGenomix_Presentation.pptx) | 16-slide presentation with speaker notes |
+| [`QGenomix_Final_Mentor_Evaluation_Report.docx`](QGenomix_Final_Mentor_Evaluation_Report.docx) | Final report for the mentor evaluation: requirements, method, design, all experiments and results |
+| [`QGenomix_Final_Panel_Evaluation_Report.docx`](QGenomix_Final_Panel_Evaluation_Report.docx) | Final report for the panel evaluation: the same format, plus the changes since the mentor evaluation and the final demonstration |
+| [`QGenomix_Project_Summary.pdf`](QGenomix_Project_Summary.pdf) | Three-page summary of the whole project |
+| [`QGenomix_Presentation.pptx`](QGenomix_Presentation.pptx) | 41-slide presentation with speaker notes |
 | [`docs/model_card.md`](docs/model_card.md) | Intended use, data, performance, fairness and limits of the deployed model |
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | How to run the demo and what remains |
 | [`docs/resume_highlights.md`](docs/resume_highlights.md) | Project summary lines for CVs |
@@ -54,7 +58,7 @@ Thapar Institute of Engineering and Technology, Patiala.
 | S4 | `qgenomix.search.qubo`, `solvers`, `qaoa`, `mitigation` | QUBO pair selection (annealing + swap polish); QAOA (penalty and Dicke/XY forms); readout correction, post-selection, zero-noise extrapolation |
 | S5 | `qgenomix.quantum` | 8-qubit pair circuit, exact fast simulator, encoders, fidelity kernel |
 | S6 | `qgenomix.models.zoo` | 17 predictors, from the IDRS questionnaire to the quantum stack |
-| S7 | `qgenomix.eval`, `qgenomix.pipeline` | AUC, EDR@K, lean-case capture, DeLong, McNemar; experiments E0 to E13 |
+| S7 | `qgenomix.eval`, `qgenomix.pipeline` | AUC, EDR@K, lean-case capture, DeLong, McNemar; experiments E0 to E15 |
 | S8 | `qgenomix.app` | Model bundle, genotype parser (23andMe, AncestryDNA) with LD imputation, FastAPI, Streamlit dashboard with what-ifs, PDF report, Docker, synthetic personas |
 
 ## Quick start
@@ -73,6 +77,7 @@ make bundle       # train the deployable model -> bundle/
 make impute       # LD imputation panel for partial consumer DNA files -> bundle/impute_panel.npz
 make e10          # lifestyle what-if check against the simulator's truth
 make extras       # E7b error mitigation, E11 fairness, E12 robustness, E13 imputation
+make quantum      # E14 entanglement and interaction, E15 QAOA makes the full pair selection
 make figures      # -> figures/*.png, results/tables.json
 make personas     # three synthetic demo genomes -> data/personas/
 make app          # Streamlit on http://localhost:8501 (restart after rebuilding the bundle)
@@ -114,6 +119,8 @@ in this repository. `make rehearse-ibm` runs the whole script locally on the IBM
 | E11 fairness | Clinical + genetics beats clinical in all 5 South Asian populations and both sexes; AUC 0.84 (Punjabi) to 0.92 (Tamil, Telugu); calibration equal across groups |
 | E12 robustness | Under 13 alternative simulator settings, genetics beats clinical factors in 13/13 (AUC +0.04 to +0.08) and beats IDRS on lean cases in 13/13; planted-pair discovery ranges 25-95% with effect size |
 | E13 partial DNA files | At 45% coverage, LD imputation: PRS r 0.95 → 0.98, risk-percentile error 13 → 6 points, high-risk people kept 54% → 80% |
+| E14 entanglement and interaction | Outcome made only of 4 gene pairs: circuit with entanglement 0.673 (64 parameters), without 0.523, classical networks 0.602 (59 parameters) and 0.648 (110); regression on the true products 0.706 |
+| E15 QAOA makes the selection | 12-qubit XY QAOA in a decomposition makes the full 48-of-200 choice: matches or beats simulated annealing in 4 of 6 runs; with 32 samples per block it finds the block optimum 12.1% of the time against 7.2% for random sampling |
 
 Every number comes from `results/*.json`; `results/tables.json` is the summary and `figures/` holds the plots.
 Results from before the clinical factors were added are kept in `results/v1_pre_clinical/`.

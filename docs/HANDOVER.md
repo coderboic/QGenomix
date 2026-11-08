@@ -1,7 +1,8 @@
-# QGenomix handover note (25 Oct 2026)
+# QGenomix handover note (updated 9 Nov 2026)
 
 The system is complete: data pipeline, simulator, interaction search, quantum stages with error mitigation,
-17 models, experiments E0 to E13, a risk-report app (dashboard, API, PDF, Docker) and the mentor report.
+17 models, experiments E0 to E15, a risk-report app (dashboard, API, PDF, Docker), the final mentor and panel
+reports, and the slides.
 Two features are deliberately kept for the final panel (around 9 November) because each needs a team account.
 
 ## Done since the previous mentor review (21 Oct)
@@ -14,9 +15,14 @@ Two features are deliberately kept for the final panel (around 9 November) becau
 - **Robustness** (E12): the conclusions under 13 alternative simulator settings.
 - **PDF report** from the dashboard and `POST /v1/report.pdf`; **Docker image** (`docker compose up`).
 - **IBM rehearsal mode**: `make rehearse-ibm` runs the hardware script locally on the Kingston noise model.
-- Mentor report regenerated from the results: `QGenomix_Mentor_Evaluation_Report.docx`
-  (rebuild: `cd docs/report && npm install && npm run build`).
-- Presentation: `QGenomix_Presentation.pptx`, 16 slides with speaker notes and native charts
+- **Why quantum, measured** (3 Nov, `make quantum`): E14 shows entanglement is what lets the circuit capture
+  gene-gene interaction (0.673 with CZ gates, 0.523 without, on an outcome made only of gene pairs); E15 shows
+  12-qubit QAOA can make the full 48-of-200 selection through decomposition (`qgenomix.search.xy_qaoa`), matching
+  or beating simulated annealing in 4 of 6 runs.
+- Final reports regenerated from the results, in the same format: `QGenomix_Final_Mentor_Evaluation_Report.docx`
+  and `QGenomix_Final_Panel_Evaluation_Report.docx` (rebuild both: `cd docs/report && npm install && npm run build`).
+  Word asks to update fields when a report opens: answer Yes, so the contents and page numbers match Word's layout.
+- Presentation: `QGenomix_Presentation.pptx`, 41 light slides with speaker notes and native charts
   (rebuild: `cd docs/presentation && npm install && npm run build`).
 
 ## Kept for the final panel (each about one day)

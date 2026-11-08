@@ -13,6 +13,9 @@ gene-interaction search (Python, PyTorch, Qiskit, PennyLane, XGBoost, PLINK, Fas
   adding genetics to India's IDRS screening questionnaire nearly doubled lean diabetes cases caught (30% to 58%).
 - Formulated gene-pair selection as a QUBO and solved it with simulated annealing and QAOA, including a
   constraint-preserving XY-mixer / Dicke-state circuit; benchmarked every quantum step against classical controls.
+- Showed with matched controls that entanglement is what lets an 8-qubit circuit capture gene-gene interaction
+  (AUC 0.673 with CZ gates, 0.523 without), and that 12-qubit QAOA, through decomposition, makes the full
+  48-of-200 pair selection as well as simulated annealing.
 - Implemented quantum error mitigation (readout correction, symmetry post-selection, zero-noise extrapolation),
   recovering most of the QAOA quality lost on an IBM Heron (Kingston) noise model.
 - Wrote an LD-based genotype imputation for consumer DNA files (23andMe, AncestryDNA) that halves risk-percentile
@@ -21,7 +24,7 @@ gene-interaction search (Python, PyTorch, Qiskit, PennyLane, XGBoost, PLINK, Fas
   PLINK's BOOST, with calibrated false-positive control (λ = 1.05).
 - Audited fairness across five South Asian populations and both sexes, and robustness across 13 simulator settings.
 - Shipped a FastAPI + Streamlit app with explainable reports (SHAP), lifestyle what-ifs, PDF export and Docker;
-  38 automated tests and GitHub Actions CI.
+  41 automated tests and GitHub Actions CI.
 
 **One-line pitch (for interviews)**
 "BMI-based screening misses South Asians who get diabetes while thin. We showed, on real genomes with simulated

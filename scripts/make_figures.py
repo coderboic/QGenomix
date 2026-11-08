@@ -1,5 +1,9 @@
 """Turn results/*.json into figures/*.png and results/tables.json (skips anything not yet computed).
 
+Figures are saved at exactly the size they are printed (6.4 inches, the report's text width) and embedded at 100%,
+so a 12 pt label here is exactly as large as the 12 pt text around it. Each figure makes one point, with plain-English
+labels and values written on the marks instead of a legend wherever that is possible.
+
     python scripts/make_figures.py
 """
 
@@ -19,6 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.ticker  # noqa: E402,F401
 import numpy as np  # noqa: E402
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle  # noqa: E402
 
 from qgenomix.config import load_config  # noqa: E402
 from qgenomix.eval.stats import delong_test, holm, mcnemar_test  # noqa: E402
@@ -27,14 +32,16 @@ from qgenomix.utils import save_json  # noqa: E402
 
 RES, FIG = ROOT / "results", ROOT / "figures"
 FIG.mkdir(exist_ok=True)
-INK, MUTED, LINE = "#15232b", "#586a72", "#d3dde0"
+INK, MUTED, LINE = "#15232b", "#4d5f69", "#d3dde0"
 TEAL, PURPLE, AMBER, RED, GREEN, GREY = "#0a756f", "#5a4fb0", "#a8650a", "#b3261e", "#1d7f47", "#8a979e"
-POP_COL = {"SAS": TEAL, "EUR": PURPLE, "EAS": AMBER, "AMR": GREEN, "AFR": RED}
+DEEP, DARK_GREY = "#0d3d46", "#5f6e76"
+WIDTH = 6.4  # inches: the report's text width
 plt.rcParams.update({
-    "font.family": "DejaVu Sans", "font.size": 10, "axes.edgecolor": MUTED, "axes.labelcolor": INK,
-    "xtick.color": MUTED, "ytick.color": MUTED, "axes.spines.top": False, "axes.spines.right": False,
-    "axes.grid": True, "grid.color": LINE, "grid.linewidth": 0.6, "figure.dpi": 150, "savefig.bbox": "tight",
-    "axes.titleweight": "bold", "axes.titlesize": 11, "legend.frameon": False,
+    "font.family": ["Liberation Serif", "DejaVu Serif"], "font.size": 12, "axes.labelsize": 12,
+    "xtick.labelsize": 12, "ytick.labelsize": 12, "legend.fontsize": 12, "axes.edgecolor": MUTED,
+    "axes.labelcolor": INK, "text.color": INK, "xtick.color": INK, "ytick.color": INK, "axes.spines.top": False,
+    "axes.spines.right": False, "axes.grid": False, "grid.color": LINE, "grid.linewidth": 0.7, "figure.dpi": 100,
+    "savefig.dpi": 300, "legend.frameon": False, "axes.axisbelow": True, "figure.constrained_layout.use": True,
 })
 
 
@@ -49,39 +56,86 @@ def save(fig, name):
     print("wrote", name)
 
 
-FAMILY = {"M0_idrs": GREY, "M1_bmi": GREY, "M3c_clinical": GREY, "M2_prs": GREY,
-          "M3_additive": GREY, "M4_rf": AMBER, "M5_svm": AMBER, "M6_xgb": AMBER,
-          "M7_xgb_pairs": AMBER, "M8_xgb_twin": AMBER, "H_twin": AMBER, "M9_xgb_noent": PURPLE, "H_noent": PURPLE,
-          "M10_xgb_vqc": PURPLE, "H_vqc": PURPLE, "M11_qsvc": PURPLE, "M12_stack": TEAL}
 ORDER = ["M0_idrs", "M1_bmi", "M3c_clinical", "M2_prs",
          "M3_additive", "M4_rf", "M5_svm", "M6_xgb", "M7_xgb_pairs", "H_twin", "M8_xgb_twin",
          "H_noent", "M9_xgb_noent", "H_vqc", "M10_xgb_vqc", "M11_qsvc", "M12_stack"]
+
+
+def yline(ax):
+    ax.grid(axis="y")
+
+
+def xline(ax):
+    ax.grid(axis="x")
+
+
+def fig_intro():
+    """Published numbers quoted in Chapter 1 of the report (sources: Caleyachetty 2021, Gujral 2018)."""
+    bmi = [("White", 30.0), ("Black", 28.1), ("Chinese", 26.9), ("Arab", 26.6), ("South Asian", 23.9)]
+    fig, ax = plt.subplots(figsize=(WIDTH, 2.6))
+    y = np.arange(len(bmi))[::-1]
+    ax.barh(y, [v for _, v in bmi], height=0.66, color=[GREY, GREY, GREY, GREY, RED])
+    for yi, (_, v) in zip(y, bmi, strict=True):
+        ax.text(v + 0.25, yi, f"{v:.1f}", va="center", fontsize=14, fontweight="bold")
+    ax.set(yticks=y, yticklabels=[n for n, _ in bmi], xlabel="BMI carrying the diabetes risk of BMI 30 in White people",
+           xlim=(0, 33))
+    ax.tick_params(axis="y", length=0)
+    save(fig, "fig_intro_bmi.png")
+
+    fig, ax = plt.subplots(figsize=(WIDTH, 2.8))
+    x = np.arange(2)
+    indian, us = [23.5, 13.6], [6.1, 2.8]
+    ax.bar(x - 0.2, indian, 0.38, color=RED, label="Asian Indians, Chennai")
+    ax.bar(x + 0.2, us, 0.38, color=GREY, label="White adults, United States")
+    for xi, a, b in zip(x, indian, us, strict=True):
+        ax.text(xi - 0.2, a + 0.5, f"{a}%", ha="center", fontsize=14, fontweight="bold")
+        ax.text(xi + 0.2, b + 0.5, f"{b}%", ha="center", fontsize=14, fontweight="bold")
+    ax.set(xticks=x, xticklabels=["Normal-weight men", "Normal-weight women"], ylabel="Adults with diabetes (%)",
+           ylim=(0, 30))
+    ax.legend(loc="upper right")
+    yline(ax)
+    save(fig, "fig_intro_lean.png")
 
 
 def fig_data(tables):
     e0 = load("e0_data.json")
     if not e0:
         return
-    fig, ax = plt.subplots(1, 3, figsize=(13, 3.8))
     pcs = e0["pca"]
-    for pop, col in POP_COL.items():
+    names = {"AMR": ("American", GREY, (-0.0168, 0.0035, "right")),
+             "EUR": ("European", PURPLE, (-0.0065, 0.0285, "left")),
+             "EAS": ("East Asian", AMBER, (-0.0125, -0.0335, "left")),
+             "AFR": ("African", RED, (0.0355, 0.0055, "right")),
+             "SAS": ("South Asian", TEAL, (-0.0005, 0.0045, "left"))}
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.5))
+    for pop, (label, col, (cx, cy, ha)) in names.items():
         m = np.array(pcs["superpop"]) == pop
-        ax[0].scatter(np.array(pcs["pc1"])[m], np.array(pcs["pc2"])[m], s=5, alpha=0.6, color=col, label=pop)
-    ax[0].set(title="1000 Genomes: genetic PCs", xlabel="PC1", ylabel="PC2")
-    ax[0].legend(markerscale=3, fontsize=8)
-    ax[1].scatter(e0["eaf_real_sas"], e0["eaf_mosaic"], s=14, color=TEAL)
-    ax[1].plot([0, 1], [0, 1], color=MUTED, lw=0.8, ls="--")
-    r = np.corrcoef(e0["eaf_real_sas"], e0["eaf_mosaic"])[0, 1]
-    ax[1].set(title="Mechanism SNP frequencies", xlabel="real South Asians (n = 489)",
-              ylabel="synthetic mosaic (n = 10,000)")
-    ax[1].text(0.05, 0.9, f"r = {r:.4f}", transform=ax[1].transAxes, color=INK)
+        ax.scatter(np.array(pcs["pc1"])[m], np.array(pcs["pc2"])[m], s=14, alpha=0.75, color=col, linewidths=0)
+        ax.annotate(label, xy=(-0.0099, 0.0059) if pop == "SAS" else (cx, cy), xytext=(cx, cy), ha=ha, va="center",
+                    color=DARK_GREY if pop == "AMR" else col, fontsize=13, fontweight="bold",
+                    arrowprops={"arrowstyle": "-", "color": col, "lw": 1.2} if pop == "SAS" else None)
+    ax.set(xlabel="Genetic component 1", ylabel="Genetic component 2", xticks=[], yticks=[], xlim=(-0.036, 0.04))
+    save(fig, "fig_e0_pca.png")
+
+    fig, ax = plt.subplots(figsize=(4.3, 3.9))
+    real, syn = e0["eaf_real_sas"], e0["eaf_mosaic"]
+    ax.plot([0, 1], [0, 1], color=GREY, lw=1.2)
+    ax.scatter(real, syn, s=34, color=TEAL, linewidths=0)
+    r = np.corrcoef(real, syn)[0, 1]
+    ax.text(0.06, 0.88, f"r = {r:.4f}", fontsize=14, fontweight="bold", color=TEAL)
+    ax.set(xlabel="Allele frequency, 489 real people", ylabel="Allele frequency, synthetic cohort",
+           xlim=(0, 1), ylim=(0, 1), xticks=[0, 0.5, 1], yticks=[0, 0.5, 1])
+    save(fig, "fig_e0_freq.png")
+
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.1))
     real, syn = np.array(e0["prs_real_sas"]), np.array(e0["prs_mosaic"])
-    bins = np.linspace(min(real.min(), syn.min()), max(real.max(), syn.max()), 40)
-    ax[2].hist(real, bins=bins, density=True, alpha=0.55, color=PURPLE, label="real SAS")
-    ax[2].hist(syn, bins=bins, density=True, alpha=0.55, color=TEAL, label="mosaic")
-    ax[2].set(title="D-PRISM PRS (SAS weights)", xlabel="score", ylabel="density")
-    ax[2].legend()
-    save(fig, "fig_data_checks.png")
+    bins = np.linspace(min(real.min(), syn.min()), max(real.max(), syn.max()), 32)
+    ax.hist(syn, bins=bins, density=True, color=TEAL, alpha=0.75, label="Synthetic people")
+    ax.hist(real, bins=bins, density=True, histtype="step", color=INK, lw=2, label="Real South Asians")
+    ax.set(xlabel="D-PRISM risk score", ylabel="Share of people", yticks=[])
+    ax.spines["left"].set_visible(False)
+    ax.legend(loc="upper right")
+    save(fig, "fig_e0_prs.png")
     tables["e0"] = {k: e0[k] for k in ("components", "prevalence", "case_rate_lean", "case_rate_nonlean",
                                        "lean_share_of_cases", "case_rate_both_high", "case_rate_others",
                                        "bmi_both_high", "bmi_others", "bmi_mean", "bmi_sd", "prs_sd_ratio",
@@ -100,18 +154,19 @@ def fig_lean_heatmap(cfg):
     qb = np.digitize(ph.scores["beta_cell"], np.quantile(ph.scores["beta_cell"], [0.2, 0.4, 0.6, 0.8]))
     ql = np.digitize(ph.scores["lipodystrophy"], np.quantile(ph.scores["lipodystrophy"], [0.2, 0.4, 0.6, 0.8]))
     rate = np.array([[ph.y[(qb == i) & (ql == j)].mean() for j in range(5)] for i in range(5)])
-    bmi = np.array([[ph.bmi[(qb == i) & (ql == j)].mean() for j in range(5)] for i in range(5)])
-    fig, ax = plt.subplots(figsize=(5.4, 4.4))
-    im = ax.imshow(rate * 100, origin="lower", cmap="YlOrRd")
+    fig, ax = plt.subplots(figsize=(5.0, 4.1))
+    ax.imshow(rate * 100, origin="lower", cmap="YlOrRd", vmin=0, vmax=45)
     for i in range(5):
         for j in range(5):
-            ax.text(j, i, f"{rate[i, j] * 100:.0f}%\n{bmi[i, j]:.1f}", ha="center", va="center", fontsize=7.5,
-                    color="white" if rate[i, j] > 0.2 else INK)
-    ax.set(xticks=range(5), yticks=range(5), xticklabels=[f"Q{k}" for k in range(1, 6)],
-           yticklabels=[f"Q{k}" for k in range(1, 6)], xlabel="lipodystrophy score quintile",
-           ylabel="β-cell score quintile", title="Simulated case rate (and mean BMI)")
-    ax.grid(False)
-    fig.colorbar(im, ax=ax, label="case rate (%)", shrink=0.8)
+            ax.text(j, i, f"{rate[i, j] * 100:.0f}%", ha="center", va="center", fontsize=13,
+                    color="white" if rate[i, j] > 0.22 else INK)
+    labels = ["Lowest", "2", "3", "4", "Highest"]
+    ax.set(xticks=range(5), yticks=range(5), xticklabels=labels, yticklabels=labels,
+           xlabel="Fat-distribution (lipodystrophy) score, fifths of people",
+           ylabel="Insulin-production (β-cell) score")
+    ax.tick_params(length=0)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
     save(fig, "fig_lean_phenotype.png")
 
 
@@ -134,67 +189,47 @@ def fig_e1(tables):
                              for k in runs[0]["time"]},
                     "params": runs[0]["params"], "qubo_info": [r["qubo_info"] for r in runs],
                     "components": runs[0]["components"]}
-    fig, ax = plt.subplots(figsize=(8, 6.2))
-    y = np.arange(len(names))[::-1]
-    m = [rows[n]["auc"][0] for n in names]
-    s = [rows[n]["auc"][1] for n in names]
-    ax.barh(y, m, xerr=s, color=[FAMILY[n] for n in names], height=0.65, error_kw={"ecolor": INK, "lw": 0.8})
+    show = [("BMI rule", "M1_bmi", GREY), ("PRS only", "M2_prs", GREY), ("IDRS questionnaire", "M0_idrs", GREY),
+            ("Clinical factors", "M3c_clinical", GREY), ("XGBoost + quantum features", "M10_xgb_vqc", PURPLE),
+            ("XGBoost", "M6_xgb", TEAL), ("Clinical + genetics", "M3_additive", TEAL),
+            ("Stacked hybrid", "M12_stack", TEAL)]
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.5))
+    y = np.arange(len(show))
+    m = [rows[n]["auc"][0] for _, n, _ in show]
+    ax.barh(y, m, color=[c for _, _, c in show], height=0.68)
     for yi, mi in zip(y, m, strict=True):
-        ax.text(mi + 0.006, yi, f"{mi:.3f}", va="center", fontsize=8, color=INK)
-    ax.set(yticks=y, yticklabels=names, xlabel=f"test AUC (mean ± sd over {len(runs)} seeds)",
-           title="E1 · Benchmark on held-out synthetic South Asians (N = 10,000)")
-    lo = min(m) - 0.05
-    ax.set_xlim(max(0.45, lo), min(1.0, max(m) + 0.06))
-    from matplotlib.patches import Patch
-
-    ax.legend(handles=[Patch(color=GREY, label="screening / additive"), Patch(color=AMBER, label="classical ML"),
-                       Patch(color=PURPLE, label="quantum"), Patch(color=TEAL, label="QGenomix stack")],
-              loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8)
+        ax.text(mi + 0.004, yi, f"{mi:.3f}", va="center", fontsize=12, fontweight="bold")
+    ax.set(yticks=y, yticklabels=[lab for lab, _, _ in show], xlabel="AUC (higher is better)", xlim=(0.5, 0.93),
+           xticks=[0.5, 0.6, 0.7, 0.8, 0.9])
+    ax.tick_params(axis="y", length=0)
+    xline(ax)
     save(fig, "fig_e1_benchmark.png")
 
-    # E5 entanglement ablation: paired by seed
-    pairs = [("H_twin", "H_noent", "H_vqc"), ("M8_xgb_twin", "M9_xgb_noent", "M10_xgb_vqc")]
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
-    for ax, trio in zip(axes, pairs, strict=True):
-        for r in runs:
-            vals = [r["metrics"][n]["auc"] for n in trio]
-            ax.plot(range(3), vals, "-o", color=MUTED, alpha=0.5, ms=4)
-        means = [np.mean([r["metrics"][n]["auc"] for r in runs]) for n in trio]
-        ax.plot(range(3), means, "-o", color=PURPLE, lw=2.2, ms=7, label="mean")
-        ax.set(xticks=range(3), xticklabels=["classical\ntwin", "VQC, no\nentanglement", "VQC,\nentangled"],
-               ylabel="test AUC", xlim=(-0.3, 2.3))
-        ax.legend()
-    axes[0].set_title("E5 · Encoder with its own linear head")
-    axes[1].set_title("E5 · Encoder features fed to XGBoost")
+    # E5 entanglement ablation
+    trio = [("Classical twin", "H_twin", GREY), ("Circuit without entanglement", "H_noent", PURPLE),
+            ("Circuit with entanglement", "H_vqc", PURPLE)]
+    fig, ax = plt.subplots(figsize=(WIDTH, 1.9))
+    for i, (_, n, col) in enumerate(trio):
+        ax.errorbar(rows[n]["auc"][0], i, xerr=rows[n]["auc"][1], fmt="o", ms=10, color=col, capsize=4, lw=2)
+        ax.text(rows[n]["auc"][0] + rows[n]["auc"][1] + 0.0012, i, f"{rows[n]['auc'][0]:.3f}", va="center",
+                fontweight="bold")
+    ax.set(yticks=range(3), yticklabels=[t[0] for t in trio], xlabel="AUC (mean ± sd over 3 seeds)",
+           ylim=(-0.5, 2.5), xlim=(0.855, 0.885))
+    ax.tick_params(axis="y", length=0)
+    xline(ax)
     save(fig, "fig_e5_entanglement.png")
 
     # E8 lean capture
-    show = ["M1_bmi", "M0_idrs", "M3c_clinical", "M2_prs", "M3_additive", "M10_xgb_vqc", "M12_stack"]
-    show = [n for n in show if n in rows]
-    fig, ax = plt.subplots(figsize=(9.5, 3.8))
-    x = np.arange(len(show))
-    cc = [rows[n]["case_capture"][0] * 100 for n in show]
-    lc = [rows[n]["lean_case_capture"][0] * 100 for n in show]
-    ax.bar(x - 0.2, cc, 0.38, color=GREY, label="all cases caught")
-    ax.bar(x + 0.2, lc, 0.38, color=RED, label="lean cases caught (BMI < 23)")
-    for xi, v in zip(x + 0.2, lc, strict=True):
-        ax.text(xi, v + 1, f"{v:.0f}%", ha="center", fontsize=8)
-    ax.set(xticks=x, xticklabels=show, ylabel="% caught when screening top 20%",
-           title="E8 · The lean blind spot: who does each strategy catch?")
-    ax.legend(fontsize=8)
+    show = [("BMI rule", "M1_bmi", GREY), ("IDRS", "M0_idrs", GREY), ("Clinical\nfactors", "M3c_clinical", GREY),
+            ("Clinical +\ngenetics", "M3_additive", TEAL)]
+    fig, ax = plt.subplots(figsize=(5.2, 3.2))
+    vals = [rows[n]["lean_case_capture"][0] * 100 for _, n, _ in show]
+    ax.bar(range(4), vals, color=[c for _, _, c in show], width=0.62)
+    for i, v in enumerate(vals):
+        ax.text(i, v + 1.2, f"{v:.0f}%", ha="center", fontsize=15, fontweight="bold")
+    ax.set(xticks=range(4), xticklabels=[lab for lab, _, _ in show], ylabel="Lean cases caught (%)", ylim=(0, 70))
+    yline(ax)
     save(fig, "fig_e8_lean.png")
-
-    # losses
-    r0 = runs[0]
-    if r0.get("losses"):
-        fig, ax = plt.subplots(figsize=(5.5, 3.4))
-        for k, col in (("loss_vqc", PURPLE), ("loss_vqc_noent", AMBER), ("loss_twin", GREY)):
-            if k in r0["losses"]:
-                ax.plot(range(1, len(r0["losses"][k]) + 1), r0["losses"][k], "-o", ms=3, color=col,
-                        label=k.replace("loss_", ""))
-        ax.set(xlabel="epoch", ylabel="weighted BCE loss", title="Encoder training (final refit, seed 0)")
-        ax.legend()
-        save(fig, "fig_training_loss.png")
 
     # EDR from models (E1)
     edr = defaultdict(list)
@@ -237,25 +272,21 @@ def fig_sweeps(tables):
     if e2:
         gammas = sorted({r["gamma"] for r in e2})
         deltas = sorted({r["delta"] for r in e2})
-        fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
-        for name, col, lab in (("score_test", TEAL, "score test (ours)"), ("boost", AMBER, "PLINK BOOST")):
-            means = [np.mean([r["edr"][name]["edr@10"] for r in e2 if r["delta"] == d and r["gamma"] == gammas[-1]
-                              and name in r["edr"]]) for d in deltas]
-            axes[0].plot(deltas, means, "-o", color=col, label=lab)
-        sel = [np.mean([r["selection"]["qubo"]["recall"] for r in e2 if r["delta"] == d and
-                        r["gamma"] == gammas[-1]]) for d in deltas]
-        axes[0].plot(deltas, sel, "--s", color=PURPLE, label="QUBO-selected set (K = 48)")
-        axes[0].set(xlabel="planted pair effect δ (sd units)", ylabel="share of planted pairs found",
-                    title=f"E2 · Power vs interaction strength (γ = {gammas[-1]})", ylim=(-0.03, 1.03))
-        axes[0].legend(fontsize=8)
-        for g, col in zip(gammas, (GREY, AMBER, RED), strict=False):
-            ps = [np.mean([r["mech_interaction_p"] < 0.05 for r in e2 if r["gamma"] == g and r["delta"] == d])
-                  for d in deltas]
-            axes[1].plot(deltas, ps, "-o", color=col, label=f"γ = {g}")
-        axes[1].axhline(0.05, color=MUTED, ls=":", lw=1)
-        axes[1].set(xlabel="planted pair effect δ", ylabel="share of runs with p < 0.05",
-                    title="E2 · Mechanism-level interaction test (β × lipo)", ylim=(-0.03, 1.03))
-        axes[1].legend(fontsize=8)
+        fig, ax = plt.subplots(figsize=(WIDTH, 3.3))
+        strongest = [r for r in e2 if r["gamma"] == gammas[-1]]
+
+        def curve(fn):
+            return [np.mean([fn(r) for r in strongest if r["delta"] == d and fn(r) is not None]) for d in deltas]
+
+        series = [("QUBO-selected set", PURPLE, curve(lambda r: r["selection"]["qubo"]["recall"])),
+                  ("Score test, top 10", TEAL, curve(lambda r: r["edr"]["score_test"]["edr@10"])),
+                  ("PLINK BOOST, top 10", AMBER, curve(lambda r: r["edr"].get("boost", {}).get("edr@10")))]
+        for (lab, col, vals), off in zip(series, (5, -4, 0), strict=True):
+            ax.plot(deltas, np.array(vals) * 100, "-o", color=col, lw=2.5, ms=8)
+            ax.text(deltas[-1] + 0.012, vals[-1] * 100 + off, lab, color=col, fontweight="bold", va="center")
+        ax.set(xlabel="Strength of the planted interaction (δ)", ylabel="Planted pairs found (%)", ylim=(-3, 105),
+               xticks=deltas, xlim=(-0.01, 0.31))
+        yline(ax)
         save(fig, "fig_e2_power.png")
         tab = defaultdict(dict)
         for g in gammas:
@@ -272,20 +303,16 @@ def fig_sweeps(tables):
     e3 = load("e3_sample_size.json")
     if e3:
         ns = sorted({r["n"] for r in e3})
-        fig, ax = plt.subplots(figsize=(6, 3.8))
-        for name, col, lab in (("score_test", TEAL, "score test top-10"), ("boost", AMBER, "PLINK BOOST top-10")):
-            pts = [(n, np.mean([r["edr"][name]["edr@10"] for r in e3 if r["n"] == n and name in r["edr"]]))
-                   for n in ns if any(name in r["edr"] for r in e3 if r["n"] == n)]
-            ax.plot(*zip(*pts, strict=True), "-o", color=col, label=lab)
-        ax.plot(ns, [np.mean([r["selection"]["qubo"]["recall"] for r in e3 if r["n"] == n]) for n in ns], "--s",
-                color=PURPLE, label="QUBO-selected set (K = 48)")
-        ax.set_xscale("log")
-        ax.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-        ax.set(xticks=ns, xticklabels=[f"{n / 1000:g}k" for n in ns],
-               xlabel="cohort size", ylabel="share of planted pairs found", ylim=(-0.03, 1.03),
-               title="E3 · How many people are needed?")
-        ax.legend(fontsize=8)
+        fig, ax = plt.subplots(figsize=(WIDTH, 3.0))
+        vals = [np.mean([r["edr"]["score_test"]["edr@10"] for r in e3 if r["n"] == n]) * 100 for n in ns]
+        ax.plot(range(len(ns)), vals, "-o", color=TEAL, lw=2.5, ms=9)
+        for i, v in enumerate(vals):
+            ax.text(i, v + 6, f"{v:.0f}%", ha="center", fontsize=13, fontweight="bold")
+        ax.set(xticks=range(len(ns)), xticklabels=[f"{n:,}" for n in ns], xlabel="People in the cohort",
+               ylabel="Planted pairs found (%)", ylim=(0, 118), yticks=[0, 25, 50, 75, 100])
+        yline(ax)
         save(fig, "fig_e3_sample_size.png")
+
         def at(n, f):
             return float(np.mean([f(r) for r in e3 if r["n"] == n]))
 
@@ -296,24 +323,15 @@ def fig_sweeps(tables):
 
     e4 = load("e4_null.json")
     if e4:
-        fig, ax = plt.subplots(1, 2, figsize=(10, 3.8))
-        ax[0].plot(e4["qq_expected"], e4["qq_observed"], ".", ms=3, color=TEAL)
-        mx = max(e4["qq_expected"])
-        ax[0].plot([0, mx], [0, mx], color=MUTED, ls="--", lw=0.8)
-        ax[0].set(xlabel="expected −log10 p", ylabel="observed −log10 p",
-                  title=f"E4 · Null QQ plot ({e4['n_tests']:,} tests, λ = {e4['lambda_gc']:.3f})")
         runs = e4["runs"]
         bonf = [r["n_sig_bonferroni"] for r in runs]
         boost_top = [r["edr"]["boost"]["edr@10"] if "boost" in r["edr"] else 0 for r in runs]
-        n_cand = runs[0]["n_candidates"]
-        thr = -np.log10(0.05 / n_cand)
-        best = [-np.log10(r["min_p"]) for r in runs]
-        ax[1].scatter(range(1, len(runs) + 1), best, color=TEAL, s=28, zorder=3, label="strongest pair in the run")
-        ax[1].axhline(thr, color=RED, lw=1.2, ls="--", label=f"Bonferroni threshold (0.05 / {n_cand:,})")
-        ax[1].set(xlabel="null simulation (no true interaction)", ylabel="−log10 p of the strongest pair",
-                  ylim=(0, thr + 1.2), xticks=[1, 5, 10, 15, 20],
-                  title=f"E4 · {sum(b > 0 for b in bonf)} of {len(runs)} null runs report any interaction")
-        ax[1].legend(fontsize=8, loc="lower right")
+        fig, ax = plt.subplots(figsize=(4.3, 3.8))
+        mx = max(e4["qq_expected"])
+        ax.plot([0, mx], [0, mx], color=GREY, lw=1.5)
+        ax.plot(e4["qq_expected"], e4["qq_observed"], "o", ms=4, color=TEAL)
+        ax.text(0.2, mx * 0.86, f"λ = {e4['lambda_gc']:.2f}", fontsize=14, fontweight="bold", color=TEAL)
+        ax.set(xlabel="Expected −log10 p", ylabel="Observed −log10 p")
         save(fig, "fig_e4_null.png")
         tables["e4"] = {k: e4[k] for k in ("n_tests", "frac_p_below_005", "frac_p_below_001", "lambda_gc")} | {
             "runs_with_any_bonferroni_hit": int(sum(b > 0 for b in bonf)), "n_runs": len(runs),
@@ -328,22 +346,14 @@ def fig_sweeps(tables):
                       ("recall", "mean_redundancy", "objective", "shadow_pairs", "distinct_snps")} for s in strat}
         wins = {s: float(np.mean([r["selection"][s]["objective"] >= max(r["selection"][t]["objective"] for t in strat)
                                   - 1e-9 for r in rows])) for s in strat}
-        fig, ax = plt.subplots(1, 3, figsize=(11, 3.6))
-        labels = ["top-K", "mRMR", "QUBO"]
-        cols = [GREY, AMBER, PURPLE]
-        fmt = {"recall": "{:.0%}", "shadow_pairs": "{:.1f}", "distinct_snps": "{:.1f}"}
-        for a, metric, title in zip(ax, ("recall", "shadow_pairs", "distinct_snps"),
-                                    ("planted pairs kept in the 48", "shadow pairs among the 48 (lower = better)",
-                                     "distinct SNPs covered (of 62)"), strict=True):
-            vals = [stats_[s][metric] for s in strat]
-            a.bar(labels, vals, color=cols, width=0.6)
-            for i, v in enumerate(vals):
-                a.text(i, v * 1.01, fmt[metric].format(v), ha="center", va="bottom", fontsize=9, color=INK)
-            a.set_title(title, fontsize=10)
-            a.set_ylim(0, max(vals) * 1.18)
-        wins_txt = ", ".join(f"{lab} {wins[s]:.0%}" for lab, s in zip(labels, strat, strict=True))
-        fig.suptitle(f"E6 · Pair-selection strategies ({len(rows)} simulated datasets) · "
-                     f"best QUBO objective: {wins_txt}", fontweight="bold", fontsize=11)
+        fig, ax = plt.subplots(figsize=(5.2, 2.9))
+        labels = ["Top-K", "mRMR", "QUBO"]
+        vals = [stats_[s]["shadow_pairs"] for s in strat]
+        ax.bar(labels, vals, color=[GREY, GREY, PURPLE], width=0.58)
+        for i, v in enumerate(vals):
+            ax.text(i, v + 0.6, f"{v:.1f}", ha="center", fontsize=14, fontweight="bold")
+        ax.set(ylabel="Redundant pairs among 48", ylim=(0, 27))
+        yline(ax)
         save(fig, "fig_e6_search.png")
         tables["e6"] = {"stats": stats_, "best_objective_share": wins, "n_runs": len(rows)}
 
@@ -355,58 +365,31 @@ def fig_e7(tables):
     hw = load("e7_hardware.json")
     probs_ = e7["problems"]
     depths = sorted({r["depth"] for r in probs_[0]["runs"]})
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.0))
-    styles = {"penalty": ("--", "o", "penalty QUBO, X mixer"), "xy": ("-", "s", "constraint-preserving XY mixer")}
 
     def mean_metric(form, depth, key, metric):
         vals = [r[key][metric] for p in probs_ for r in p["runs"]
                 if r["formulation"] == form and r["depth"] == depth and key in r]
         return np.mean(vals) if vals else np.nan
 
-    for form, (ls, mk, lab) in styles.items():
-        ax[0].plot(depths, [mean_metric(form, d, "ideal", "approx_ratio") for d in depths], ls, marker=mk,
-                   color=PURPLE, label=f"{lab} · ideal")
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.4))
+    rand = np.mean([p["baselines"]["uniform_feasible"]["approx_ratio"] for p in probs_])
+    ax.axhline(rand, color=DARK_GREY, ls=":", lw=2)
+    for form, col, label, off in (("xy", PURPLE, "XY mixer", 0), ("penalty", AMBER, "Textbook QAOA", -0.045)):
+        ideal = [mean_metric(form, d, "ideal", "approx_ratio") for d in depths]
+        ax.plot(depths, ideal, "-o", color=col, lw=2.5, ms=8)
         nd = [d for d in depths if not np.isnan(mean_metric(form, d, "noisy_fake_kingston", "approx_ratio"))]
-        ax[0].plot(nd, [mean_metric(form, d, "noisy_fake_kingston", "approx_ratio") for d in nd], ls, marker=mk,
-                   color=RED, label=f"{lab} · noisy (Kingston model)")
-        ax[1].plot(depths, [mean_metric(form, d, "ideal", "p_feasible") for d in depths], ls, marker=mk,
-                   color=PURPLE, label=f"{lab} · ideal")
-        ax[1].plot(nd, [mean_metric(form, d, "noisy_fake_kingston", "p_feasible") for d in nd], ls, marker=mk,
-                   color=RED, label=f"{lab} · noisy")
+        ax.plot(nd, [mean_metric(form, d, "noisy_fake_kingston", "approx_ratio") for d in nd], "s", color=RED, ms=9,
+                mec="white", mew=0.8, zorder=4)
+        ax.text(depths[-1] + 0.18, ideal[-1] + off, label, color=col, fontweight="bold", va="center")
+    ax.text(depths[-1] + 0.18, rand + 0.045, "Random choice", color=DARK_GREY, fontweight="bold", va="center")
+    ax.text(2.25, 0.27, "Squares: same circuits with IBM noise", color=RED, fontweight="bold", va="center")
     if hw:
-        for form, (ls, _mk, lab) in styles.items():
-            hd = sorted({r["depth"] for r in hw["results"] if r["formulation"] == form})
-            ax[0].plot(hd, [np.mean([r["approx_ratio"] for r in hw["results"] if r["formulation"] == form
-                                     and r["depth"] == d]) for d in hd], ls, marker="D", color=INK,
-                       label=f"{lab} · IBM {hw['backend']}")
-    b = probs_[0]["baselines"]
-    ax[0].axhline(np.mean([p["baselines"]["uniform_feasible"]["approx_ratio"] for p in probs_]), color=GREY, ls=":",
-                  label="random valid selection")
-    ax[0].axhline(np.mean([p["baselines"]["uniform_all"]["approx_ratio"] for p in probs_]), color=GREY, ls="-.",
-                  lw=0.8, label="random bitstring")
-    ax[0].set(xlabel="QAOA depth p", ylabel="approximation ratio", xticks=depths, ylim=(-0.02, 1.02),
-              title=f"E7 · Solution quality (choose {e7['k']} of {e7['n_vars']} pairs)")
-    handles, labels = ax[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.36, 0.0), ncol=3, fontsize=8.5)
-    ax[1].axhline(b["uniform_all"]["p_feasible"], color=GREY, ls="-.", lw=0.8, label="random bitstring")
-    ax[1].set(xlabel="QAOA depth p", ylabel="P(valid selection of exactly k)", xticks=depths, ylim=(-0.02, 1.05),
-              title="E7 · Does the circuit respect the constraint?")
-
-    gates = []
-    for form in ("penalty", "xy"):
-        for d in (1, 2):
-            rr = [r for p in probs_ for r in p["runs"] if r["formulation"] == form and r["depth"] == d
-                  and "noisy_fake_kingston" in r]
-            if rr:
-                gates.append((f"{form}\np={d}", np.mean([r["ideal_sampler"]["n_2q"] for r in rr]),
-                              np.mean([r["noisy_fake_kingston"]["n_2q"] for r in rr])))
-    if gates:
-        x = np.arange(len(gates))
-        ax[2].bar(x - 0.2, [g[1] for g in gates], 0.38, color=TEAL, label="logical (all-to-all)")
-        ax[2].bar(x + 0.2, [g[2] for g in gates], 0.38, color=RED, label="after routing to Heron r2")
-        ax[2].set(xticks=x, xticklabels=[g[0] for g in gates], ylabel="two-qubit gates",
-                  title="E7 · Circuit cost on real hardware topology")
-        ax[2].legend(fontsize=8)
+        hd = sorted({r["depth"] for r in hw["results"]})
+        ax.plot(hd, [np.mean([r.get("readout_postselect_zne", r.get("approx_ratio")) for r in hw["results"]
+                              if r["depth"] == d]) for d in hd], "D", color=INK, ms=8)
+    ax.set(xlabel="Circuit depth", ylabel="Solution quality (1 = best)", xticks=depths, ylim=(0, 1),
+           xlim=(0.7, depths[-1] + 0.15))
+    yline(ax)
     save(fig, "fig_e7_qaoa.png")
     slim = []
     for p in probs_:
@@ -425,19 +408,20 @@ def fig_e9(tables):
         return
     pops = list(e9["auc"])
     models = ["M2_prs", "M3_additive", "M6_xgb", "M7_xgb_pairs"]
-    names = {"M2_prs": "PRS only", "M3_additive": "clinical + PRS + mechanisms", "M6_xgb": "XGBoost",
-             "M7_xgb_pairs": "XGBoost + gene pairs"}
-    fig, ax = plt.subplots(figsize=(8.5, 4.2))
-    w = 0.2
-    for i, (m, col) in enumerate(zip(models, (GREY, TEAL, AMBER, PURPLE), strict=True)):
-        means = [np.nanmean(e9["auc"][p][m]) for p in pops]
-        sds = [np.nanstd(e9["auc"][p][m]) for p in pops]
-        ax.bar(np.arange(len(pops)) + (i - 1.5) * w, means, w, yerr=sds, color=col, label=names[m],
-               error_kw={"ecolor": INK, "lw": 0.7})
-    ax.set(xticks=range(len(pops)), xticklabels=[f"{p}\n(n = {e9['n_by_pop'][p]})" for p in pops],
-           ylabel="AUC (mean ± sd, 20 outcome draws)", ylim=(0.5, 0.95),
-           title="E9 · Models trained on synthetic South Asians, tested on real genomes")
-    ax.legend(fontsize=8.5, ncol=4, loc="upper center", bbox_to_anchor=(0.5, -0.17))
+    names = {"SAS": "South\nAsian", "EUR": "European", "EAS": "East\nAsian", "AMR": "American", "AFR": "African"}
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.1))
+    x = np.arange(len(pops))
+    prs = [np.nanmean(e9["auc"][p]["M2_prs"]) for p in pops]
+    full = [np.nanmean(e9["auc"][p]["M3_additive"]) for p in pops]
+    ax.bar(x - 0.2, prs, 0.38, color=GREY, label="PRS only")
+    ax.bar(x + 0.2, full, 0.38, color=TEAL, label="Clinical + genetics")
+    for xi, a, b in zip(x, prs, full, strict=True):
+        ax.text(xi - 0.2, a + 0.006, f"{a:.2f}", ha="center", fontsize=12)
+        ax.text(xi + 0.2, b + 0.006, f"{b:.2f}", ha="center", fontsize=12, fontweight="bold")
+    ax.set(xticks=x, xticklabels=[names[p] for p in pops], ylabel="AUC", ylim=(0.5, 1.0),
+           yticks=[0.5, 0.6, 0.7, 0.8, 0.9])
+    ax.legend(loc="upper right", ncol=2)
+    yline(ax)
     save(fig, "fig_e9_real_genomes.png")
     tables["e9"] = {p: {m: (float(np.nanmean(e9["auc"][p][m])), float(np.nanstd(e9["auc"][p][m]))) for m in models}
                     | {"prevalence": float(np.mean(e9["prevalence"][p]))} for p in pops}
@@ -447,30 +431,21 @@ def fig_e10(tables):
     e10 = load("e10_lifestyle.json")
     if not e10:
         return
-    names = {"vigorous_exercise": "Regular vigorous exercise", "waist_minus_5cm": "Waist 5 cm smaller",
-             "both": "Both changes"}
-    fig, axes = plt.subplots(1, 3, figsize=(13, 3.8), sharey=True)
-    for ax, (key, title) in zip(axes, names.items(), strict=True):
-        rows = e10["scenarios"][key]["by_genetic_quintile"]
-        q = [r["quintile"] for r in rows]
-        ax.plot(q, [100 * r["true_before"] for r in rows], "-", color=GREY, lw=2, label="true risk, now")
-        ax.plot(q, [100 * r["true_after"] for r in rows], "--", color=GREY, lw=2, label="true risk, after change")
-        ax.plot(q, [100 * r["model_before"] for r in rows], "-o", color=PURPLE, ms=5, label="QGenomix, now")
-        ax.plot(q, [100 * r["model_after"] for r in rows], "--o", color=TEAL, ms=5, label="QGenomix, after change")
-        sc = e10["scenarios"][key]
-        ax.set(title=f"{title}\nmodel {100 * sc['model_relative_change']:+.0f}% · truth "
-                     f"{100 * sc['true_relative_change']:+.0f}%", xlabel="genetic risk quintile (D-PRISM PRS)",
-               xticks=q)
-    axes[0].set_ylabel("mean risk of diabetes (%)")
-    axes[0].legend(fontsize=8)
-    fig.suptitle("E10 · Lifestyle what-ifs: the app's estimate against the simulator's true effect",
-                 fontweight="bold", y=1.03)
+    names = {"waist_minus_5cm": "Waist 5 cm smaller", "vigorous_exercise": "Regular exercise", "both": "Both changes"}
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.0))
+    x = np.arange(3)
+    app = [-100 * e10["scenarios"][k]["model_relative_change"] for k in names]
+    true = [-100 * e10["scenarios"][k]["true_relative_change"] for k in names]
+    ax.bar(x - 0.2, app, 0.38, color=TEAL, label="Application")
+    ax.bar(x + 0.2, true, 0.38, color=GREY, label="True effect")
+    for xi, a, b in zip(x, app, true, strict=True):
+        ax.text(xi - 0.2, a + 1, f"{a:.0f}%", ha="center", fontsize=13, fontweight="bold")
+        ax.text(xi + 0.2, b + 1, f"{b:.0f}%", ha="center", fontsize=13)
+    ax.set(xticks=x, xticklabels=list(names.values()), ylabel="Drop in risk (%)", ylim=(0, 72))
+    ax.legend(loc="upper left", ncol=2)
+    yline(ax)
     save(fig, "fig_e10_lifestyle.png")
     tables["e10"] = e10
-
-
-POP_NAME = {"GIH": "Gujarati", "PJL": "Punjabi", "BEB": "Bengali", "STU": "Sri Lankan Tamil", "ITU": "Telugu",
-            "male": "men", "female": "women", "all": "all South Asians"}
 
 
 def fig_e7b(tables, hardware_file="e7_hardware.json"):
@@ -480,51 +455,39 @@ def fig_e7b(tables, hardware_file="e7_hardware.json"):
     runs = e["runs"]
     hw = load(hardware_file)  # written by scripts/run_ibm.py on real IBM hardware (mitigated runs only)
     hw_rows = hw["results"] if hw and hw.get("mitigated") else []
-    stages = [("raw", "noisy, no mitigation"), ("readout", "+ readout correction"),
-              ("readout_postselect", "+ post-selection"), ("readout_postselect_zne", "+ zero-noise extrapolation")]
-    shades = ["#d9d4f2", "#b1a8e4", "#8579cf", PURPLE]
-    forms = [("penalty", "Penalty QUBO, X mixer"), ("xy", "Constraint-preserving XY mixer")]
+    stages = ["raw", "readout", "readout_postselect", "readout_postselect_zne"]
     depths = sorted({r["depth"] for r in runs})
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=True)
     summary = {}
-    for ax, (form, title) in zip(axes, forms, strict=True):
-        for di, d in enumerate(depths):
+    for form in ("penalty", "xy"):
+        for d in depths:
             rs = [r for r in runs if r["formulation"] == form and r["depth"] == d]
             if not rs:
                 continue
-            vals = {k: float(np.mean([r[k] for r in rs])) for k, _ in stages}
-            ideal = float(np.mean([r["ideal_postselect"] for r in rs]))
-            rand = float(np.mean([r["random_valid"] for r in rs]))
-            summary[f"{form}_p{d}"] = vals | {"ideal_postselect": ideal, "random_valid": rand, "n_problems": len(rs),
-                                              "n_2q": float(np.mean([r["n_2q"] for r in rs]))}
-            for si, ((k, label), col) in enumerate(zip(stages, shades, strict=True)):
-                x = di + (si - 1.5) * 0.19
-                ax.bar(x, vals[k], width=0.17, color=col, label=label if di == 0 else None)
-            ax.plot([di - 0.4, di + 0.4], [ideal, ideal], color=INK, lw=2,
-                    label="noise-free, same post-selection" if di == 0 else None)
-            ax.plot([di - 0.4, di + 0.4], [rand, rand], color=GREY, lw=1.4, ls="--",
-                    label="random valid choice" if di == 0 else None)
-            ax.text(di + (1.5 * 0.19), max(vals["readout_postselect_zne"], ideal) + 0.025,
-                    f"{vals['readout_postselect_zne']:.2f}", ha="center", fontsize=9, color=INK, fontweight="bold")
+            summary[f"{form}_p{d}"] = {k: float(np.mean([r[k] for r in rs])) for k in stages} | {
+                "ideal_postselect": float(np.mean([r["ideal_postselect"] for r in rs])),
+                "random_valid": float(np.mean([r["random_valid"] for r in rs])), "n_problems": len(rs),
+                "n_2q": float(np.mean([r["n_2q"] for r in rs]))}
             hr = [r for r in hw_rows if r["formulation"] == form and r["depth"] == d]
-            if hr:  # real hardware: raw and fully mitigated, on top of the matching simulated bars
-                h_raw = float(np.mean([r["raw"] for r in hr]))
-                h_mit = float(np.mean([r["readout_postselect_zne"] for r in hr]))
-                ax.plot([di - 1.5 * 0.19, di + 1.5 * 0.19], [h_raw, h_mit], "D", color=RED, ms=7, mec="white",
-                        label=f"IBM hardware ({hw['backend']})")
-                summary[f"{form}_p{d}"] |= {"hardware_raw": h_raw, "hardware_mitigated": h_mit,
-                                            "hardware_backend": hw["backend"], "hardware_problems": len(hr)}
-        ax.set(title=title, xticks=range(len(depths)), xticklabels=[f"QAOA depth {d}" for d in depths], ylim=(0, 1))
-    axes[0].set_ylabel("approximation ratio (1 = best selection)")
-    legend = {}
-    for ax in axes:
-        for h, label in zip(*ax.get_legend_handles_labels(), strict=True):
-            legend.setdefault(label, h)
-    fig.legend(list(legend.values()), list(legend), fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, 0.0),
-               ncol=3)
-    where = f" and on {hw['backend']}" if hw_rows else ""
-    fig.suptitle(f"E7b · Error mitigation on the IBM Kingston noise model{where} (mean of 3 sub-problems)",
-                 fontweight="bold", y=1.02)
+            if hr:
+                summary[f"{form}_p{d}"] |= {
+                    "hardware_raw": float(np.mean([r["raw"] for r in hr])),
+                    "hardware_mitigated": float(np.mean([r["readout_postselect_zne"] for r in hr])),
+                    "hardware_backend": hw["backend"], "hardware_problems": len(hr)}
+    v = summary["xy_p1"]
+    labels = ["Noisy", "+ Readout\ncorrection", "+ Post-\nselection", "+ Zero-noise\nextrapolation", "Noise-\nfree"]
+    vals = [v[k] for k in stages] + [v["ideal_postselect"]]
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.2))
+    ax.bar(range(5), vals, color=["#d9d4f2", "#b1a8e4", "#8579cf", PURPLE, INK], width=0.66)
+    for i, val in enumerate(vals):
+        ax.text(i, val + 0.02, f"{val:.2f}", ha="center", fontsize=14, fontweight="bold")
+    ax.axhline(v["random_valid"], color=RED, ls=":", lw=2)
+    ax.text(-0.42, v["random_valid"] + 0.02, f"Random choice {v['random_valid']:.2f}", color=RED, fontweight="bold")
+    if "hardware_mitigated" in v:
+        ax.plot([0, 3], [v["hardware_raw"], v["hardware_mitigated"]], "D", color=RED, ms=9, mec="white",
+                label=f"IBM hardware ({v['hardware_backend']})")
+        ax.legend(loc="upper left")
+    ax.set(xticks=range(5), xticklabels=labels, ylabel="Solution quality (1 = best)", ylim=(0, 1), yticks=[0, 0.5, 1])
+    yline(ax)
     save(fig, "fig_e7b_mitigation.png")
     tables["e7b"] = summary
 
@@ -533,33 +496,20 @@ def fig_e11(tables):
     e = load("e11_fairness.json")
     if not e:
         return
-    groups = ["GIH", "PJL", "BEB", "STU", "ITU", "male", "female", "all"]
+    groups = {"GIH": "Gujarati", "PJL": "Punjabi", "BEB": "Bengali", "STU": "Sri Lankan\nTamil", "ITU": "Telugu",
+              "male": "Men", "female": "Women"}
     g = e["groups"]
-    x = np.arange(len(groups))
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    for ax, (k1, k2, title, ylabel) in zip(axes[:2], [
-            ("auc_clinical", "auc_genetic", "Accuracy in each group", "AUC (pooled over 20 outcome draws)"),
-            ("capture_clinical", "capture_genetic", "Cases caught when screening the top 20%",
-             "share of the group's cases caught")], strict=True):
-        v1 = [g[k][k1] if k1.startswith("auc") else g[k][k1][0] for k in groups]
-        v2 = [g[k][k2] if k2.startswith("auc") else g[k][k2][0] for k in groups]
-        ax.bar(x - 0.2, v1, 0.38, color=GREY, label="clinical factors only")
-        ax.bar(x + 0.2, v2, 0.38, color=TEAL, label="clinical + genetics")
-        for xi, v in zip(x, v2, strict=True):
-            ax.text(xi + 0.2, v + 0.01, f"{v:.2f}", ha="center", fontsize=8, color=INK)
-        ax.set(title=title, ylabel=ylabel, ylim=(0.4 if k1.startswith("auc") else 0, 1.06), xticks=x)
-        ax.set_xticklabels([POP_NAME[k] for k in groups], rotation=30, ha="right")
-        ax.axvline(4.5, color=LINE, lw=1)
-    axes[0].legend(fontsize=8, loc="upper left", ncol=2)
-    oe = [g[k]["oe"] for k in groups]
-    axes[2].errorbar(x, [o[0] for o in oe], yerr=[o[1] for o in oe], fmt="o", color=TEAL, ms=7, capsize=3)
-    axes[2].axhline(1, color=MUTED, lw=1, ls="--")
-    axes[2].set(title="Calibration (observed / expected cases)", ylabel="O/E, mean ± sd over 20 draws",
-                ylim=(0.4, 1.6), xticks=x)
-    axes[2].set_xticklabels([POP_NAME[k] for k in groups], rotation=30, ha="right")
-    axes[2].axvline(4.5, color=LINE, lw=1)
-    fig.suptitle("E11 · Fairness across South Asian populations and sexes (real 1000 Genomes genomes, n = 489)",
-                 fontweight="bold", y=1.02)
+    x = np.array([0, 1, 2, 3, 4, 5.4, 6.4])
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.4))
+    clin = [g[k]["auc_clinical"] for k in groups]
+    gen = [g[k]["auc_genetic"] for k in groups]
+    ax.bar(x - 0.2, clin, 0.38, color=GREY, label="Clinical factors only")
+    ax.bar(x + 0.2, gen, 0.38, color=TEAL, label="Clinical + genetics")
+    for xi, v in zip(x, gen, strict=True):
+        ax.text(xi + 0.2, v + 0.004, f"{v:.2f}", ha="center", fontsize=12, fontweight="bold")
+    ax.set(xticks=x, xticklabels=list(groups.values()), ylabel="AUC", ylim=(0.7, 1.02), yticks=[0.7, 0.8, 0.9, 1.0])
+    ax.legend(loc="upper left", ncol=2)
+    yline(ax)
     save(fig, "fig_e11_fairness.png")
     tables["e11"] = {"n": e["n"], "groups": g}
 
@@ -569,28 +519,26 @@ def fig_e12(tables):
     if not e:
         return
     summ = e["summary"]
-    labels = list(summ)
-    y = np.arange(len(labels))[::-1]
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5.2), sharey=True)
-    pairs = [("auc_clinical", "auc_genetic", "AUC", "clinical only", "clinical + genetics"),
-             ("lean_capture_idrs", "lean_capture_genetic", "lean cases caught in the top 20%", "IDRS",
-              "clinical + genetics")]
-    for ax, (a, b, xlabel, la, lb) in zip(axes[:2], pairs, strict=True):
-        va, vb = [summ[k][a] for k in labels], [summ[k][b] for k in labels]
-        ax.hlines(y, va, vb, color=LINE, lw=3)
-        ax.scatter(va, y, color=GREY, s=45, zorder=3, label=la)
-        ax.scatter(vb, y, color=TEAL, s=45, zorder=3, label=lb)
-        ax.set(xlabel=xlabel)
-        ax.legend(fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, -0.11), ncol=2)
-    axes[0].set(yticks=y, title="Genetics adds accuracy in every setting")
-    axes[0].set_yticklabels(labels)
-    axes[1].set(title="and catches more lean cases than IDRS")
-    axes[2].barh(y, [summ[k]["edr10_score_test"] for k in labels], color=PURPLE, height=0.6)
-    axes[2].set(xlabel="planted gene pairs found in the top 10 (EDR@10)", xlim=(0, 1),
-                title="Interaction search depends on effect size")
-    fig.suptitle(f"E12 · Robustness to simulator assumptions (one change at a time; {len(e['seeds'])} seeds × "
-                 f"{e['n']:,} people)", fontweight="bold", y=1.0)
-    save(fig, "fig_e12_robustness.png")
+    labels = dict(zip(summ, ["Default setting", "No mechanism interaction", "Double mechanism interaction",
+                             "Weaker gene pairs", "Stronger gene pairs", "Half background PRS", "1.5× background PRS",
+                             "Half mechanism scores", "1.5× mechanism scores", "Prevalence 8%", "Prevalence 15%",
+                             "Half age effect", "Double age effect"], strict=True))
+    for a, b, scale, fmt, xlabel, xmax, fname in (
+            ("auc_clinical", "auc_genetic", 1, "+{:.3f}", "AUC gained by adding genetics", 0.1, "fig_e12_auc.png"),
+            ("lean_capture_idrs", "lean_capture_genetic", 100, "+{:.0f}",
+             "Extra lean cases caught compared with IDRS (points)", 33, "fig_e12_lean.png")):
+        gains = sorted((((summ[k][b] - summ[k][a]) * scale, labels[k]) for k in summ))
+        fig, ax = plt.subplots(figsize=(WIDTH, 4.3))
+        y = np.arange(len(gains))
+        ax.barh(y, [g for g, _ in gains], height=0.7,
+                color=[DEEP if n == "Default setting" else TEAL for _, n in gains])
+        for yi, (g, _) in zip(y, gains, strict=True):
+            ax.text(g + xmax * 0.012, yi, fmt.format(g), va="center", fontweight="bold")
+        ax.set(yticks=y, yticklabels=[n for _, n in gains], xlabel=xlabel, xlim=(0, xmax),
+               ylim=(-0.6, len(gains) - 0.4))
+        ax.tick_params(axis="y", length=0)
+        xline(ax)
+        save(fig, fname)
     tables["e12"] = summ
 
 
@@ -608,157 +556,231 @@ def fig_e13(tables):
             out.append((float(np.mean(v)), float(np.std(v))))
         return out
 
-    panels = [("PRS agreement with the full genome", "correlation, South Asian PRS component",
-               lambda m: m["prs_r"][-1]),
-              ("Error in the risk percentile shown", "mean absolute error (percentile points)",
-               lambda m: m["risk_pct_mae"]),
-              ("High-risk people still flagged high", "share of the full-genome top 20%",
-               lambda m: m["high_risk_kept"])]
-    fig, axes = plt.subplots(1, 3, figsize=(14, 3.9))
-    summary = {}
-    xs = [100 * c for c in covs]
-    for ax, (title, ylabel, fn) in zip(axes, panels, strict=True):
-        for method, col, label in (("mean_fill", GREY, "fill with population average"),
-                                   ("ld_impute", TEAL, "LD imputation")):
-            v = agg(method, fn)
-            ax.errorbar(xs, [a for a, _ in v], yerr=[b for _, b in v], fmt="-o", color=col, ms=6, capsize=3,
-                        lw=2, label=label)
-            summary.setdefault(method, {})[title] = v
-        ax.set(title=title, xlabel="share of PRS variants in the file (%)", ylabel=ylabel, xticks=xs)
-    axes[0].legend(fontsize=8)
-    fig.suptitle(f"E13 · Partial consumer DNA files: {e['n_test']} held-out real South Asian genomes, LD panel "
-                 f"from the other {e['n_reference']}", fontweight="bold", y=1.03)
-    save(fig, "fig_e13_imputation.png")
+    measures = {"PRS agreement with the full genome": lambda m: m["prs_r"][-1],
+                "Error in the risk percentile shown": lambda m: m["risk_pct_mae"],
+                "High-risk people still flagged high": lambda m: m["high_risk_kept"]}
+    summary = {m: {t: agg(m, fn) for t, fn in measures.items()} for m in ("mean_fill", "ld_impute")}
+    xs = [f"{100 * c:.0f}%" for c in covs]
+    for title, fname, ylabel, ylim, fmt, scale, pad in (
+            ("Error in the risk percentile shown", "fig_e13_error.png", "Error in risk percentile\n(points)",
+             (0, 21), "{:.1f}", 1, 1.2),
+            ("High-risk people still flagged high", "fig_e13_flagged.png", "High-risk people\nstill flagged (%)",
+             (40, 105), "{:.0f}%", 100, 3)):
+        fig, ax = plt.subplots(figsize=(WIDTH, 3.0))
+        for method, col, label in (("mean_fill", DARK_GREY, "Average filling"), ("ld_impute", TEAL, "LD imputation")):
+            vals = [a * scale for a, _ in summary[method][title]]
+            ax.plot(range(3), vals, "-o", color=col, lw=2.5, ms=9)
+            for i, v in enumerate(vals):
+                ax.text(i, v + pad, fmt.format(v), ha="center", fontweight="bold", color=col, fontsize=13)
+            ax.text(2.14, vals[-1], label, color=col, fontweight="bold", va="center")
+        ax.set(xticks=range(3), xticklabels=xs, xlabel="Share of risk-score variants in the file", ylabel=ylabel,
+               ylim=ylim, xlim=(-0.25, 2.1))
+        yline(ax)
+        save(fig, fname)
     tables["e13"] = {k: v for k, v in e.items() if k != "rows"} | {"summary": summary, "coverages": covs}
 
 
-def fig_architecture():
-    """System diagram: three inputs feeding stages S1-S8; quantum stages in purple."""
-    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+def fig_e14(tables):
+    e = load("e14_entanglement.json")
+    if not e:
+        return
+    rows = e["rows"]
+    names = [("additive", "Regression on the 8 dosages", GREY), ("noent", "Circuit without entanglement", "#b1a8e4"),
+             ("twin_small", "Classical network, 59 parameters", GREY),
+             ("twin", "Classical network, 110 parameters", GREY),
+             ("vqc", "Circuit with entanglement, 64 parameters", PURPLE),
+             ("products", "Regression on the true products", TEAL)]
+    summary = {k: (float(np.mean([r[k] for r in rows])), float(np.std([r[k] for r in rows]))) for k, _, _ in names}
+    fig, ax = plt.subplots(figsize=(WIDTH, 3.3))
+    y = np.arange(len(names))
+    m = [summary[k][0] for k, _, _ in names]
+    ax.barh(y, m, xerr=[summary[k][1] for k, _, _ in names], color=[c for _, _, c in names], height=0.66,
+            error_kw={"ecolor": INK, "capsize": 3, "lw": 1.2})
+    for yi, mi, (k, _, _) in zip(y, m, names, strict=True):
+        ax.text(mi + summary[k][1] + 0.004, yi, f"{mi:.3f}", va="center", fontweight="bold")
+    ax.axvline(0.5, color=DARK_GREY, ls=":", lw=1.5)
+    ax.set(yticks=y, yticklabels=[lab for _, lab, _ in names], xlabel="AUC when only gene pairs carry risk",
+           xlim=(0.45, 0.76))
+    ax.tick_params(axis="y", length=0)
+    xline(ax)
+    save(fig, "fig_e14_interaction.png")
 
-    classical, quantum, inp = ("#eef3f6", "#5b7383"), ("#efe9f8", "#6a4c9c"), ("#ffffff", "#8a9aa4")
-    fig, ax = plt.subplots(figsize=(13, 7.6), dpi=200)
-    ax.set(xlim=(0, 13), ylim=(0, 7.6))
+    grids = e["qubit0_grid"]
+    fig, axes = plt.subplots(1, 2, figsize=(WIDTH, 3.0))
+    lim = max(np.abs(np.array(grids["entangled"])).max(), np.abs(np.array(grids["cz_removed"])).max())
+    for ax, key, title in ((axes[0], "entangled", "With entanglement"),
+                           (axes[1], "cz_removed", "Same angles, CZ gates removed")):
+        g = np.array(grids[key])
+        ax.imshow(g, cmap="PuOr", vmin=-lim, vmax=lim, origin="lower")
+        for i in range(3):
+            for j in range(3):
+                ax.text(j, i, f"{g[i, j]:+.2f}", ha="center", va="center", fontsize=12,
+                        color="white" if abs(g[i, j]) > 0.55 * lim else INK)
+        ax.set(xticks=range(3), yticks=range(3), xlabel="Partner SNP dosage", title=title)
+        ax.tick_params(length=0)
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+    axes[0].set_ylabel("Own SNP dosage")
+    save(fig, "fig_e14_qubit.png")
+    delong = {k: [r["delong_p"][k] for r in rows] for k in rows[0].get("delong_p", {})}
+    tables["e14"] = {"n": e["n"], "seeds": len(rows), "auc": summary, "delong_p": delong,
+                     "params": {k: rows[0][f"{k}_params"] for k in ("noent", "vqc", "twin", "twin_small")},
+                     "partner_share": {k: float(np.mean([np.mean(r[f"{k}_partner_share"]) for r in rows]))
+                                       for k in ("noent", "vqc")},
+                     "qubit0_grid": grids}
+
+
+def fig_e15(tables):
+    e = load("e15_qaoa_selection.json")
+    if not e:
+        return
+    rows = e["rows"]
+    methods = [("qaoa_p2", "QAOA, depth 2", PURPLE), ("qaoa_p1", "QAOA, depth 1", "#8579cf"),
+               ("exact", "Exhaustive search", TEAL), ("random", "Random sampling", DARK_GREY)]
+
+    def scaled(trace, row):  # 0 = the top-K start, 1 = simulated annealing
+        lo, hi = row["topk"]["objective"], row["sa"]["objective"]
+        return (np.array(trace) - lo) / (hi - lo)
+
+    found = {m: np.mean([run["mean_is_block_optimum"] for row in rows for run in row["runs"] if run["method"] == m])
+             for m in ("qaoa_p1", "qaoa_p2")}
+    paired_random = np.mean([run["mean_random_is_block_optimum"] for row in rows for run in row["runs"]
+                             if run["method"].startswith("qaoa")])
+    bars = [("Random sampling", paired_random, DARK_GREY), ("QAOA, depth 1", found["qaoa_p1"], "#8579cf"),
+            ("QAOA, depth 2", found["qaoa_p2"], PURPLE)]
+    fig, ax = plt.subplots(figsize=(WIDTH, 2.6))
+    y = np.arange(len(bars))
+    ax.barh(y, [100 * v for _, v, _ in bars], color=[c for _, _, c in bars], height=0.62)
+    for yi, (_, v, _) in zip(y, bars, strict=True):
+        ax.text(100 * v + 0.25, yi, f"{100 * v:.1f}%", va="center", fontsize=13, fontweight="bold")
+    ax.set(yticks=y, yticklabels=[lab for lab, _, _ in bars], xlim=(0, 15),
+           xlabel="Blocks where 32 samples contained the best selection (%)")
+    ax.tick_params(axis="y", length=0)
+    xline(ax)
+    save(fig, "fig_e15_blocks.png")
+    summary = {}
+    for m, _, _ in methods:
+        runs = [(run, row) for row in rows for run in row["runs"] if run["method"] == m]
+        summary[m] = {"final_scaled": float(np.mean([scaled(run["trace"], row)[-1] for run, row in runs])),
+                      "beats_annealing": int(sum(run["objective"] >= row["sa"]["objective"] - 1e-9
+                                                 for run, row in runs)),
+                      "n_runs": len(runs), "seconds": float(np.mean([run["seconds"] for run, _ in runs]))}
+        for key in ("objective", "distinct_snps", "recall", "shadow_pairs", "mean_is_block_optimum", "mean_percentile",
+                    "mean_random_is_block_optimum", "mean_random_percentile"):
+            if key in runs[0][0]:
+                summary[m][key] = float(np.mean([run[key] for run, _ in runs]))
+    for ref in ("topk", "sa"):
+        summary[ref] = {key: float(np.mean([row[ref][key] for row in rows])) for key in rows[0][ref]}
+    tables["e15"] = {"summary": summary, "blocks": e["blocks"], "shots": e["shots"], "n_cohorts": len(rows),
+                     "paired_random_block_optimum": float(paired_random)}
+
+
+def _box(ax, x, y, w, h, text, fill, color="white", size=12.5, weight="bold"):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=0.09", fc=fill, ec="none"))
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", color=color, fontsize=size, fontweight=weight,
+            linespacing=1.15)
+
+
+def _arrow(ax, p, q, color=MUTED):
+    ax.add_patch(FancyArrowPatch(p, q, arrowstyle="-|>", mutation_scale=15, lw=1.6, color=color, shrinkA=0, shrinkB=0))
+
+
+def _canvas(height):
+    """A blank drawing where one axis unit is one printed inch."""
+    fig = plt.figure(figsize=(WIDTH, height), layout="none")
+    ax = fig.add_axes((0, 0, 1, 1))
+    ax.set(xlim=(0, WIDTH), ylim=(0, height))
     ax.axis("off")
+    return fig, ax
 
-    def box(x, y, w, h, title, body, kind, tag=None):
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.12", fc=kind[0],
-                                    ec=kind[1], lw=1.4))
-        if tag:
-            ax.text(x + 0.14, y + h - 0.2, tag, fontsize=9.5, fontweight="bold", color=kind[1], va="top")
-        ax.text(x + w / 2, y + h - (0.5 if tag else 0.28), title, fontsize=11, fontweight="bold", color=INK,
-                ha="center", va="top")
-        ax.text(x + w / 2, y + h - (0.92 if tag else 0.7), body, fontsize=9, color="#4d5f69", ha="center",
-                va="top", linespacing=1.35)
 
-    def arrow(p, q):
-        ax.add_patch(FancyArrowPatch(p, q, arrowstyle="-|>", mutation_scale=14, lw=1.3, color="#5b7383"))
-
-    iw, ih, iy = 3.9, 1.15, 6.25
-    for x, t, b in [(0.25, "1000 Genomes phase 3",
-                     "2,504 real genomes, 84M variants\n489 South Asians = 978 haplotypes"),
-                    (4.55, "PGS Catalog scores", "D-PRISM South Asian PRS (1.3M SNPs)\n5 mechanism scores (β-cell, "
-                                                 "lipodystrophy …)"),
-                    (8.85, "Clinical questionnaire", "age, sex, BMI, waist, activity,\nparents with diabetes → IDRS")]:
-        box(x, iy, iw, ih, t, b, inp)
-    w, h, xs, y1, y2 = 2.95, 1.75, [0.25, 3.45, 6.65, 9.85], 3.85, 1.2
-    row1 = [("S1", "Data preparation", "PLINK QC, PCA, PRS,\n62 mechanism SNPs,\nhaplotype + LD panels", classical),
-            ("S2", "Cohort + simulator", "10,000 synthetic South\nAsians, clinical factors,\nliability-threshold T2D",
-             classical),
-            ("S3", "Interaction search", "Rao score test on all\n1,263 cross-mechanism\nSNP pairs, inside each CV fold",
-             classical),
-            ("S4", "Pair selection", "QUBO: relevance − overlap\nannealing; QAOA (XY mixer)\n+ error mitigation",
-             quantum)]
-    row2 = [("S5", "Quantum pair encoder", "8-qubit VQC, 48 pairs\n→ 96 features; no-entangle-\nment + classical twin",
-             quantum),
-            ("S6", "Model zoo", "17 predictors: IDRS, BMI,\nPRS, LR, RF, SVM, XGBoost,\nQSVC, stacked hybrid",
-             classical),
-            ("S7", "Evaluation E0–E13", "AUC, DeLong, EDR@K, lean\ncapture, null, fairness,\nrobustness, real genomes",
-             classical),
-            ("S8", "Risk report app", "LD imputation of DNA files,\nIDRS, what-ifs, PDF report;\nFastAPI + Streamlit, "
-                                      "Docker", classical)]
-    for x, (tag, t, b, k) in zip(xs, row1, strict=True):
-        box(x, y1, w, h, t, b, k, tag)
-    for x, (tag, t, b, k) in zip(reversed(xs), row2, strict=True):
-        box(x, y2, w, h, t, b, k, tag)
+def fig_architecture():
+    """Three inputs, then eight stages in two rows; the quantum stages are purple."""
+    fig, ax = _canvas(3.75)
+    for x, t in ((0.0, "1000 Genomes"), (2.2, "Published risk scores"), (4.4, "Clinical questionnaire")):
+        _box(ax, x, 3.2, 2.0, 0.5, t, "#e3f0ee", INK, 12, "normal")
+    w, h, gap = 1.42, 0.92, (WIDTH - 4 * 1.42) / 3
+    xs = [i * (w + gap) for i in range(4)]
+    row1 = [("1. Data\npreparation", TEAL), ("2. Synthetic\ncohort", TEAL), ("3. Interaction\nsearch", TEAL),
+            ("4. Pair\nselection", PURPLE)]
+    row2 = [("5. Quantum\nencoder", PURPLE), ("6. Prediction\nmodels", TEAL), ("7. Evaluation", TEAL),
+            ("8. Risk report\napplication", DEEP)]
+    y1, y2 = 1.72, 0.2
+    for x, (t, c) in zip(xs, row1, strict=True):
+        _box(ax, x, y1, w, h, t, c)
+    for x, (t, c) in zip(reversed(xs), row2, strict=True):
+        _box(ax, x, y2, w, h, t, c)
     for i in range(3):
-        arrow((xs[i] + w, y1 + h / 2), (xs[i + 1], y1 + h / 2))
-        arrow((xs[3 - i], y2 + h / 2), (xs[2 - i] + w, y2 + h / 2))
-    arrow((xs[3] + w / 2, y1), (xs[3] + w / 2, y2 + h))
-    arrow((0.25 + iw * 0.4, iy), (xs[0] + w * 0.45, y1 + h))
-    arrow((4.55 + 0.6, iy), (xs[0] + w * 0.82, y1 + h))
-    arrow((8.85 + 0.6, iy), (xs[1] + w * 0.7, y1 + h))
-    ax.text(0.25, 0.62, "Every quantum stage (purple) has a classical control: S4 vs annealing, top-K and mRMR; "
-            "S5 vs the same circuit without entanglement and a classical twin.", fontsize=9.5, color="#4d5f69")
-    for i, (k, label) in enumerate([(classical, "classical stage"), (quantum, "quantum stage"), (inp, "input data")]):
-        ax.add_patch(FancyBboxPatch((0.25 + i * 2.6, 0.12), 0.32, 0.22, boxstyle="round,pad=0.01", fc=k[0], ec=k[1]))
-        ax.text(0.7 + i * 2.6, 0.23, label, fontsize=9.5, color=INK, va="center")
-    ax.grid(False)
+        _arrow(ax, (xs[i] + w + 0.01, y1 + h / 2), (xs[i + 1] - 0.01, y1 + h / 2))
+        _arrow(ax, (xs[3 - i] - 0.01, y2 + h / 2), (xs[2 - i] + w + 0.01, y2 + h / 2))
+    _arrow(ax, (xs[3] + w / 2, y1 - 0.01), (xs[3] + w / 2, y2 + h + 0.01))
+    _arrow(ax, (1.0, 3.19), (xs[0] + 0.6, y1 + h + 0.01))
+    _arrow(ax, (3.2, 3.19), (xs[1] + 0.3, y1 + h + 0.01))
+    _arrow(ax, (5.4, 3.19), (xs[1] + 1.1, y1 + h + 0.01))
     save(fig, "fig_architecture.png")
 
 
 def fig_app_flow():
-    """How the app turns one consumer DNA file and six questionnaire answers into a report."""
-    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
-
-    app, quantum, inp, out = ("#eef3f6", "#5b7383"), ("#efe9f8", "#6a4c9c"), ("#ffffff", "#8a9aa4"), \
-        ("#e8f3f1", "#0a756f")
-    fig, ax = plt.subplots(figsize=(13, 5.6), dpi=200)
-    ax.set(xlim=(0, 13), ylim=(0, 5.6))
-    ax.axis("off")
-
-    def box(x, y, title, body, kind, w=2.85, h=1.55):
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.12", fc=kind[0],
-                                    ec=kind[1], lw=1.4))
-        ax.text(x + w / 2, y + h - 0.28, title, fontsize=10.5, fontweight="bold", color=INK, ha="center", va="top")
-        ax.text(x + w / 2, y + h - 0.7, body, fontsize=8.8, color="#4d5f69", ha="center", va="top", linespacing=1.35)
-
-    def arrow(p, q):
-        ax.add_patch(FancyArrowPatch(p, q, arrowstyle="-|>", mutation_scale=14, lw=1.3, color="#5b7383"))
-
-    xs, w, h, y1, y2 = [0.25, 3.45, 6.65, 9.85], 2.85, 1.55, 3.85, 0.95
-    row1 = [("Consumer DNA file", "23andMe or AncestryDNA,\nGRCh37, ~600k SNPs", inp),
-            ("Parse and check", "duplicates, alleles, strand,\ngenome build, coverage", app),
-            ("LD imputation", "missing variants from their\nbest-correlated measured\nneighbour (1.46M panel)", app),
-            ("Genetic scores", "D-PRISM PRS (5 parts),\n5 mechanism scores,\n62 SNP dosages", app)]
-    row2 = [("Quantum pair features", "12 circuits × 8 qubits\n→ 96 features for the\n48 selected SNP pairs", quantum),
-            ("Calibrated model", "XGBoost + Platt scaling\non genetic, quantum and\nclinical features", app),
-            ("Explain and simulate", "SHAP pair importance,\nmechanism percentiles,\nlifestyle what-ifs", app),
-            ("Report", "risk tier and percentile,\nIDRS, screening flags;\nscreen, JSON or PDF", out)]
-    for x, (t, b, k) in zip(xs, row1, strict=True):
-        box(x, y1, t, b, k)
-    for x, (t, b, k) in zip(reversed(xs), row2, strict=True):
-        box(x, y2, t, b, k)
-    for i in range(3):
-        arrow((xs[i] + w, y1 + h / 2), (xs[i + 1], y1 + h / 2))
-        arrow((xs[3 - i], y2 + h / 2), (xs[2 - i] + w, y2 + h / 2))
-    arrow((xs[3] + w / 2, y1), (xs[3] + w / 2, y2 + h))
-    qx, qy, qw, qh = xs[2] - 0.25, 2.9, w + 0.5, 0.6     # questionnaire feeds the model, between the rows
-    ax.add_patch(FancyBboxPatch((qx, qy), qw, qh, boxstyle="round,pad=0.02,rounding_size=0.1", fc=inp[0],
-                                ec=inp[1], lw=1.2, ls="--"))
-    ax.text(qx + qw / 2, qy + qh / 2, "Questionnaire: age, sex, BMI, waist,\nactivity, parents with diabetes",
-            fontsize=8.8, color=INK, ha="center", va="center", linespacing=1.3)
-    arrow((qx + qw / 2, qy), (qx + qw / 2, y2 + h))
-    ax.text(0.25, 0.35, "The slow part (reading and imputing the genome, about 10 s) runs once and is cached; "
-            "the model, explanation and what-ifs then re-run instantly when the answers change.",
-            fontsize=9.3, color="#4d5f69")
-    ax.grid(False)
+    """From one DNA file and six answers to a report."""
+    fig, ax = _canvas(2.6)
+    w, h, gap = 1.9, 0.92, (WIDTH - 3 * 1.9) / 2
+    xs = [i * (w + gap) for i in range(3)]
+    y1, y2 = 1.6, 0.1
+    row1 = [("DNA file\n23andMe, Ancestry", "#e3f0ee", INK), ("Check file, fill\nmissing variants", TEAL, "white"),
+            ("Genetic scores", TEAL, "white")]
+    row2 = [("Risk report\nscreen or PDF", DEEP, "white"), ("Calibrated model\nand explanation", TEAL, "white"),
+            ("Quantum features", PURPLE, "white")]
+    for x, (t, c, tc) in zip(xs, row1, strict=True):
+        _box(ax, x, y1, w, h, t, c, tc, 12.5)
+    for x, (t, c, tc) in zip(xs, row2, strict=True):
+        _box(ax, x, y2, w, h, t, c, tc, 12.5)
+    for i in range(2):
+        _arrow(ax, (xs[i] + w + 0.02, y1 + h / 2), (xs[i + 1] - 0.02, y1 + h / 2))
+        _arrow(ax, (xs[i + 1] - 0.02, y2 + h / 2), (xs[i] + w + 0.02, y2 + h / 2))
+    _arrow(ax, (xs[2] + w / 2, y1 - 0.02), (xs[2] + w / 2, y2 + h + 0.02))
+    ax.text(xs[1] + w / 2, (y1 + y2 + h) / 2, "Six questionnaire answers", ha="center", va="center", fontsize=12,
+            color=MUTED, fontweight="bold")
+    _arrow(ax, (xs[1] + w / 2, 1.2), (xs[1] + w / 2, y2 + h + 0.02), MUTED)
     save(fig, "fig_app_flow.png")
 
 
 def fig_circuit():
-    from qgenomix.quantum.circuit import draw
-
-    draw(str(FIG / "fig_circuit.png"), layers=2)
-    print("wrote fig_circuit.png")
+    """One layer of the 8-qubit encoder: load the dosages, trainable rotations, entangle; four layers in all."""
+    fig, ax = _canvas(3.7)
+    ys = [3.12 - i * 0.34 for i in range(8)]
+    top, bottom = ys[0] + 0.15, ys[-1] - 0.15
+    left, right = 0.72, 5.36
+    for i, y in enumerate(ys):
+        ax.plot([left - 0.02, right], [y, y], color=MUTED, lw=1.2, zorder=1)
+        ax.text(0.64, y, f"SNP {i // 2 + 1}{'ab'[i % 2]}", ha="right", va="center", fontsize=12)
+    _box(ax, 0.92, bottom, 1.12, top - bottom, "Load the\nSNP\ndosages", TEAL)
+    _box(ax, 2.2, bottom, 1.12, top - bottom, "Trainable\nRY and RZ\nrotations", PURPLE)
+    inside, between = [(0, 1), (2, 3), (4, 5), (6, 7)], [(1, 2), (3, 4), (5, 6)]
+    for edges, x in ((inside, 3.62), (between, 4.02)):
+        for i, j in edges:
+            ax.plot([x, x], [ys[i], ys[j]], color=INK, lw=1.8, zorder=3)
+            ax.scatter([x, x], [ys[i], ys[j]], color=INK, s=46, zorder=4)
+    ax.text(3.82, bottom - 0.2, "Entangle", ha="center", va="center", fontsize=12.5, fontweight="bold")
+    ax.add_patch(Rectangle((0.82, bottom - 0.4), 3.46, top - bottom + 0.5, fc="none", ec=MUTED, lw=1.3, ls="--"))
+    ax.text(2.55, top + 0.26, "This layer runs 4 times", ha="center", va="center", fontsize=12.5, fontweight="bold",
+            color=DARK_GREY)
+    for y in ys:
+        ax.add_patch(FancyBboxPatch((4.52, y - 0.125), 0.46, 0.25, boxstyle="round,pad=0,rounding_size=0.05", fc=DEEP,
+                                    ec="none", zorder=3))
+        ax.text(4.75, y - 0.005, "Z", ha="center", va="center", color="white", fontsize=12, fontweight="bold", zorder=4)
+    ax.text(5.44, (ys[0] + ys[-1]) / 2, "8 output\nfeatures", ha="left", va="center", fontsize=12.5,
+            fontweight="bold")
+    save(fig, "fig_circuit.png")
 
 
 if __name__ == "__main__":
     cfg = load_config()
     tables: dict = {}
-    for f in (fig_data, fig_e1, fig_sweeps, fig_e7, fig_e7b, fig_e9, fig_e10, fig_e11, fig_e12, fig_e13):
+    for f in (fig_data, fig_e1, fig_sweeps, fig_e7, fig_e7b, fig_e9, fig_e10, fig_e11, fig_e12, fig_e13, fig_e14,
+              fig_e15):
         f(tables)
     fig_lean_heatmap(cfg)
+    fig_intro()
     fig_circuit()
     fig_architecture()
     fig_app_flow()
