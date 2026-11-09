@@ -129,7 +129,7 @@ const body = [
 
   H("5. Deliverables"),
   B(`**Code:** github.com/coderboic/QGenomix — full pipeline, ${nTests} automated tests, continuous integration, Docker; every result reproducible from one configuration file.`),
-  B("**Reports:** QGenomix_Final_Mentor_Evaluation_Report.docx and QGenomix_Final_Panel_Evaluation_Report.docx (department format)."),
+  B("**Report:** QGenomix_Final_Mentor_Evaluation_Report.docx (department format)."),
   B("**Slides:** QGenomix_Mentor_Evaluation_Presentation.pptx (41 slides) and QGenomix_Final_Panel_Evaluation_Presentation.pptx (42 slides, with the live demonstration)."),
   B("**Application:** dashboard, REST API, PDF report, model card; runs offline on a laptop."),
 
