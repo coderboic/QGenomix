@@ -14,7 +14,7 @@ const sharp = require("sharp");
 const Fa = require("react-icons/fa");
 
 const ROOT = path.resolve(__dirname, "../..");
-// The final evaluation version adds one slide for the live demonstration; everything else is the same deck.
+// The final evaluation version shows the live demonstration in place of the engineering slide; both have 30 slides.
 const PANEL = process.argv.includes("--panel");
 const OUT = path.resolve(process.argv.slice(2).find((a) => !a.startsWith("--")) ||
   path.join(ROOT, PANEL ? "QGenomix_Final_Panel_Evaluation_Presentation.pptx" : "QGenomix_Mentor_Evaluation_Presentation.pptx"));
@@ -187,25 +187,22 @@ async function main() {
   // The problem (no solution and no quantum here)
   // =====================================================================
   s = newSlide("QGX Content", "India's diabetes crisis", "The problem");
-  big(s, "101 million", "Indians live with diabetes", { size: 104 });
-  big(s, "136 million", "more have prediabetes", { y: 4.1, size: 66, labelSize: 28, color: C.accent4 });
-  source(s, "ICMR-INDIAB, The Lancet Diabetes & Endocrinology, June 2023; The Tribune, 10 June 2023");
-  s.addNotes("The ICMR-INDIAB study tested over 113,000 people. It found 101 million Indians with diabetes and 136 " +
-    "million more with prediabetes. More than one Indian adult in four either has the disease or is on the way to it.");
-
-  s = newSlide("QGX Content", "A quarter of the world's diabetes", "The problem");
-  big(s, "212 million", "of the world's 828 million adults with diabetes live in India", { size: 104, y: 1.9, labelSize: 32 });
-  source(s, "NCD Risk Factor Collaboration, The Lancet, November 2024; ThePrint, 14 November 2024");
-  s.addNotes("A Lancet study pooled over a thousand population studies. It counted 828 million adults with diabetes in " +
-    "2022, more than a quarter of them in India. The count differs from ICMR's because the studies use different age " +
+  [["101 million", "Indians live with diabetes; 136 million more have prediabetes", C.accent3],
+    ["1 in 4", "of the world's 828 million adults with diabetes live in India", C.accent3],
+    ["43%", "of Indian adults with diabetes do not know they have it", C.accent4]].forEach(([v, l, color], i) => {
+    const y = 1.45 + i * 1.6;
+    text(s, v, { x: MX, y, w: 5.3, h: 1.3, fontFace: "+mj-lt", fontSize: 58, bold: true, color, valign: "middle",
+      objectName: `Number ${i + 1}` });
+    text(s, l, { x: 6.1, y, w: W - MX - 6.1, h: 1.3, fontSize: 28, valign: "middle", objectName: `Label ${i + 1}` });
+  });
+  text(s, "Sources: ICMR-INDIAB, The Lancet Diabetes & Endocrinology, June 2023, and The Tribune, 10 June 2023; " +
+    "NCD-RisC, The Lancet, November 2024, and ThePrint, 14 November 2024; IDF Diabetes Atlas, 2025",
+  { x: MX, y: 6.28, w: CW - 1, h: 0.66, fontSize: 15, color: HEX.muted, valign: "middle", objectName: "Source" });
+  s.addNotes("The ICMR-INDIAB study tested over 113,000 people: 101 million Indians have diabetes and 136 million more " +
+    "have prediabetes. A Lancet study counted 828 million adults with diabetes in the world in 2022, more than a quarter " +
+    "of them in India, and 62 percent of those were not on medication. The International Diabetes Federation says 43 " +
+    "percent of Indian adults with diabetes do not know it. The counts differ because the studies use different age " +
     "ranges and blood tests, but the message is the same.");
-
-  s = newSlide("QGX Content", "Much of it is hidden", "The problem");
-  big(s, "43%", "of Indian adults with diabetes do not know they have it", { w: 5.8, size: 120, y: 1.7, labelSize: 30 });
-  big(s, "62%", "of Indians with diabetes are not on medication", { x: 6.93, w: 5.8, size: 120, y: 1.7, labelSize: 30, color: C.accent4 });
-  source(s, "IDF Diabetes Atlas, 2025; ThePrint, 14 November 2024");
-  s.addNotes("Nearly half of the people with diabetes in India do not know it, and most are not treated. A disease that " +
-    "stays hidden does its damage in silence.");
 
   s = newSlide("QGX Content", "Normal weight does not mean low risk", "The problem");
   const bmi = [["South Asian", 23.9], ["Arab", 26.6], ["Chinese", 26.9], ["Black", 28.1], ["White", 30.0]];
@@ -218,20 +215,8 @@ async function main() {
   source(s, "Caleyachetty et al., The Lancet Diabetes & Endocrinology, 2021");
   s.addNotes("This is the first punch line. In a study of 1.47 million people, a South Asian at BMI 23.9 had the same " +
     "diabetes risk as a White person at BMI 30. Most charts call 23.9 normal. The same risk in a White person is called " +
-    "obese.");
-
-  s = newSlide("QGX Content", "Normal weight, yet far more diabetes", "The problem");
-  s.addChart(pres.charts.BAR, [
-    { name: "Asian Indians, Chennai", labels: ["Normal-weight men", "Normal-weight women"], values: [23.5, 13.6] },
-    { name: "White adults, United States", labels: ["Normal-weight men", "Normal-weight women"], values: [6.1, 2.8] },
-  ], chartBase({
-    h: AREA, barDir: "col", barGrouping: "clustered", chartColors: [RED, GREY], valAxisMinVal: 0, valAxisMaxVal: 28,
-    dataLabelFormatCode: '0.0"%"', showLegend: true, legendPos: "t",
-  }));
-  source(s, "Gujral et al., Diabetes Research and Clinical Practice, 2018");
-  s.addNotes("Compare people of normal weight directly. In Chennai, 23.5 percent of normal-weight men have diabetes; in " +
-    "the United States, 6 percent. For women it is 13.6 against 2.8. That is four to five times as much diabetes in " +
-    "people who look just as healthy.");
+    "obese. Comparing people of normal weight directly tells the same story: in Chennai 23.5 percent of normal-weight " +
+    "men have diabetes, against 6 percent in the United States.");
 
   s = newSlide("QGX Content", "Screening cannot see these people", "The problem");
   [[ICON.weight, "BMI rule", "Never flags a lean person"], [ICON.clipboard, "IDRS questionnaire", "Four questions, no genes"]]
@@ -287,25 +272,18 @@ async function main() {
   [[ICON.dna, "2,504", "real genomes from 1000 Genomes", C.accent1], [ICON.chart, "1.34 M", "variants in the D-PRISM risk score", C.accent4],
     [ICON.users, "10,000", "synthetic South Asians with a known truth", C.accent2]].forEach(([icon, v, l, color], i) => {
     const x = MX + i * 4.14;
-    card(s, x, 1.6, 3.85, 4.5, `Data card ${i + 1}`);
-    badge(s, icon, x + 0.4, 1.9, 1.0, color, `Data ${i + 1}`);
-    text(s, v, { x: x + 0.4, y: 3.05, w: 3.2, h: 1.0, fontFace: "+mj-lt", fontSize: 50, bold: true, color, valign: "middle" });
-    text(s, l, { x: x + 0.4, y: 4.15, w: 3.2, h: 1.7, fontSize: 26 });
+    card(s, x, 1.5, 3.85, 3.95, `Data card ${i + 1}`);
+    badge(s, icon, x + 0.4, 1.75, 1.0, color, `Data ${i + 1}`);
+    text(s, v, { x: x + 0.4, y: 2.85, w: 3.2, h: 1.0, fontFace: "+mj-lt", fontSize: 50, bold: true, color, valign: "middle" });
+    text(s, l, { x: x + 0.4, y: 3.9, w: 3.2, h: 1.4, fontSize: 26 });
   });
-  s.addNotes("Genotypes and risk weights are real. Disease outcomes are simulated on synthetic South Asians built from " +
-    "real haplotypes, with ten planted gene pairs, so that every discovery can be checked against a known truth. This " +
-    "is also the main limit of the work, which is why we test it so hard later.");
-
-  s = newSlide("QGX Content", "2,504 real genomes, five ancestries", "The solution");
-  figure(s, "fig_e0_pca.png", "Scatter of the first two genetic components; South Asians form a tight group between Europeans and East Asians");
-  s.addNotes("Each dot is a person. This is the well-known shape of human genetic variation, so the data was read " +
-    "correctly. South Asians, in teal, are the group we study.");
-
-  s = newSlide("QGX Content", "Synthetic people match real people", "The solution");
-  figure(s, "fig_e0_freq.png", "Allele frequencies of 62 SNPs in real and synthetic people lie on the diagonal, r = 0.9999", { w: 6.2 });
-  big(s, "r = 0.9999", "between real and synthetic allele frequencies", { x: 7.1, w: 5.6, size: 66, y: 2.1, color: C.accent1, labelSize: 30 });
-  s.addNotes("Each dot is one of the 62 mechanism SNPs. Its frequency in 489 real South Asians and in 10,000 synthetic " +
-    "people is the same, with a correlation of 0.9999.");
+  text(s, "Synthetic people match real ones: allele frequencies r = 0.9999", { x: MX, y: 5.75, w: CW, h: 0.7,
+    fontSize: 28, bold: true, color: C.accent1, align: "center", valign: "middle", objectName: "Check" });
+  s.addNotes("Genotypes and risk weights are real: all 2,504 people of 1000 Genomes, whose genetic map has the well-known " +
+    "shape of human variation. Disease outcomes are simulated on synthetic South Asians built from real haplotypes, with " +
+    "ten planted gene pairs, so every discovery can be checked against a known truth. The synthetic people have the " +
+    "same allele frequencies as the 489 real South Asians, with a correlation of 0.9999. Simulation is also the main " +
+    "limit of the work, which is why we test it so hard later.");
 
   s = newSlide("QGX Content", "Eight stages, two of them quantum", "The solution");
   figure(s, "fig_architecture.png", "Three inputs feed eight stages; pair selection and the encoder are quantum");
@@ -339,14 +317,6 @@ async function main() {
   // =====================================================================
   // Results
   // =====================================================================
-  s = newSlide("QGX Content", "Two mechanisms, dangerous together", "Results");
-  figure(s, "fig_lean_phenotype.png", "Heat map of diabetes rate by fifths of two scores; it rises from 5% to 38% only when both are high", { w: 7.0 });
-  big(s, "38%", "develop diabetes when both scores are in the top fifth", { x: 7.9, w: 4.83, size: 88, y: 1.55, labelSize: 28 });
-  text(s, "About 5% when the insulin score is lowest", { x: 7.9, y: 5.05, w: 4.83, h: 1.2, fontSize: 28 });
-  s.addNotes("In the simulated cohort, risk stays near 5 percent along the bottom row and climbs to 38 percent in the top " +
-    "corner. People high on both have a 37 percent case rate at a lower BMI. This is the lean pattern from the start " +
-    "of the talk.");
-
   s = newSlide("QGX Content", "Genetics lifts screening accuracy", "Results");
   const aucBars = [["BMI rule", "M1_bmi"], ["PRS only", "M2_prs"], ["IDRS", "M0_idrs"], ["Clinical\nfactors", "M3c_clinical"],
     ["Clinical +\ngenetics", "M3_additive"]];
@@ -381,23 +351,9 @@ async function main() {
     fontSize: 24, align: "center", valign: "middle" });
   s.addNotes("Ten pairs are planted, so a search can be marked exactly. Across the mechanism settings the score test finds " +
     "70 to 84 percent at strength 0.2, against 40 to 48 percent for PLINK's BOOST. With more people it finds them all: " +
-    "78 percent at 10,000 people and 100 percent at 40,000.");
-
-  s = newSlide("QGX Content", "It does not invent interactions", "Results");
-  figure(s, "fig_e4_null.png", "Q-Q plot of p-values on the diagonal, lambda 1.05", { w: 6.2 });
-  big(s, "18 of 20", "runs with no true interaction report nothing", { x: 7.1, w: 5.6, size: 76, y: 1.95, color: C.accent1, labelSize: 30 });
-  s.addNotes("We repeated the search twenty times with no planted interaction. The p-values follow chance almost exactly " +
-    "and 18 of the 20 runs report nothing.");
-
-  s = newSlide("QGX Content", "Selection cuts redundant pairs", "Results");
-  const sel = [["Top-K", "topk"], ["mRMR", "mrmr"], ["QUBO", "qubo"]];
-  s.addChart(pres.charts.BAR, [{ name: "Redundant pairs", labels: sel.map((b) => b[0]), values: sel.map((b) => e6[b[1]].shadow_pairs) }],
-    chartBase({ h: 4.75, barDir: "col", chartColors: [GREY, GREY, PURPLE], valAxisMinVal: 0, valAxisMaxVal: 26,
-      dataLabelFormatCode: "0.0", dataLabelFontSize: 28, barGapWidthPct: 70 }));
-  text(s, "Redundant pairs among the 48 chosen", { x: MX, y: 6.1, w: CW, h: 0.5, fontSize: 24, align: "center", valign: "middle" });
-  s.addNotes(`Nearby variants repeat the same signal. Top-K wastes 22 of its 48 places on these shadows. The QUBO and mRMR ` +
-    `both cover 62 SNPs with about 16 shadows; the QUBO reaches the best objective in ${pc(T.e6.best_objective_share.qubo)} ` +
-    `of runs and mRMR in ${pc(T.e6.best_objective_share.mrmr)}, so it is only slightly better than mRMR.`);
+    "78 percent at 10,000 people and 100 percent at 40,000. It does not invent pairs either: in 20 runs with no planted " +
+    "interaction, 18 reported nothing. The QUBO then picks 48 pairs without redundant shadows, covering 62 distinct " +
+    "SNPs instead of 49 for a plain top-48 list.");
 
   s = newSlide("QGX Content", "Entanglement lets the circuit see interaction", "Results");
   figure(s, "fig_e14_interaction.png", "AUC on an outcome made only of gene pairs: entangled circuit 0.673, without entanglement 0.523");
@@ -442,26 +398,15 @@ async function main() {
     "to simulate exactly.");
 
   s = newSlide("QGX Content", "It holds on real genomes", "Results");
-  const anc = [["South Asian", "SAS"], ["East Asian", "EAS"], ["American", "AMR"], ["European", "EUR"], ["African", "AFR"]];
-  s.addChart(pres.charts.BAR, [{ name: "AUC", labels: anc.map((a) => a[0]), values: anc.map((a) => T.e9[a[1]].M3_additive[0]) }],
-    chartBase({ h: 4.75, barDir: "col", chartColors: [TEAL, GREY, GREY, GREY, GREY], valAxisMinVal: 0.5, valAxisMaxVal: 0.95,
-      dataLabelFormatCode: "0.00", dataLabelFontSize: 26 }));
-  text(s, "AUC of the clinical + genetic model on real 1000 Genomes people", { x: MX, y: 6.1, w: CW, h: 0.5, fontSize: 24,
-    align: "center", valign: "middle" });
-  s.addNotes("Trained on synthetic South Asians and tested on real genomes, with simulated outcomes. It is best in South " +
-    "Asians and weakest in Africans, the expected loss far from the training ancestry.");
-
-  s = newSlide("QGX Content", "It holds across South Asia", "Results");
-  const grp = [["Gujarati", "GIH"], ["Punjabi", "PJL"], ["Bengali", "BEB"], ["Sri Lankan\nTamil", "STU"], ["Telugu", "ITU"], ["Men", "male"], ["Women", "female"]];
-  s.addChart(pres.charts.BAR, [{ name: "AUC gain", labels: grp.map((g) => g[0]),
-    values: grp.map((g) => e11[g[1]].auc_genetic - e11[g[1]].auc_clinical) }], chartBase({
-    h: 4.75, barDir: "col", chartColors: [TEAL], valAxisMinVal: 0, valAxisMaxVal: 0.11, dataLabelFormatCode: '"+"0.00',
-    dataLabelFontSize: 24,
-  }));
-  text(s, "AUC gained from genetics in each group", { x: MX, y: 6.1, w: CW, h: 0.5, fontSize: 24, align: "center", valign: "middle" });
-  s.addNotes(`Genetics improves on clinical factors in every population and in both sexes. Predicted risks run about ` +
-    `${Math.round(100 * (1 - e11.all.oe[0]))} percent high on real genomes, equally in every group, so local recalibration ` +
-    "is the remedy.");
+  big(s, f2(T.e9.SAS.M3_additive[0]), "AUC on the real genomes of South Asians", { w: 5.8, size: 96, y: 1.9,
+    color: C.accent1, labelSize: 30 });
+  big(s, "5 of 5", "South Asian populations where genetics helps, and in both sexes", { x: 6.93, w: 5.8, size: 96,
+    y: 1.9, color: C.accent1, labelSize: 30 });
+  s.addNotes(`Trained on synthetic South Asians and tested on the real genomes of 1000 Genomes, with simulated outcomes, ` +
+    `the model reaches ${f2(T.e9.SAS.M3_additive[0])} in South Asians and ${f2(T.e9.AFR.M3_additive[0])} in Africans, ` +
+    `the expected loss far from the training ancestry. Within South Asia, genetics improves on clinical factors in ` +
+    `every population and in both sexes. Predicted risks run about ${Math.round(100 * (1 - e11.all.oe[0]))} percent ` +
+    "high on real genomes, equally in every group, so local recalibration is the remedy.");
 
   s = newSlide("QGX Content", `It survives ${settings.length} simulator settings`, "Results");
   big(s, `${nAucWin} of ${settings.length}`, "settings where genetics beats clinical factors", { w: 5.8, size: 96, y: 1.9, color: C.accent1, labelSize: 30 });
@@ -485,35 +430,25 @@ async function main() {
     `${pc(at("ld_impute", HIGH_T, 0.45))} and cuts the percentile error from ${Math.round(at("mean_fill", ERR_T, 0.45))} ` +
     `to ${Math.round(at("ld_impute", ERR_T, 0.45))} points.`);
 
-  s = newSlide("QGX Content", "The what-ifs match the truth", "Results");
-  const wi = [["Waist 5 cm smaller", "waist_minus_5cm"], ["Regular exercise", "vigorous_exercise"], ["Both changes", "both"]];
-  s.addChart(pres.charts.BAR, [
-    { name: "Application", labels: wi.map((w) => w[0]), values: wi.map((w) => drop(w[1], "model")) },
-    { name: "True effect", labels: wi.map((w) => w[0]), values: wi.map((w) => drop(w[1], "true")) },
-  ], chartBase({ h: 4.75, barDir: "col", barGrouping: "clustered", chartColors: [TEAL, GREY], valAxisMinVal: 0, valAxisMaxVal: 0.72,
-    dataLabelFormatCode: "0%", showLegend: true, legendPos: "t" }));
-  text(s, "Drop in diabetes risk from each change", { x: MX, y: 6.1, w: CW, h: 0.5, fontSize: 24, align: "center", valign: "middle" });
-  s.addNotes("The simulator knows the true effect of each change, so the app can be checked directly. Its estimates are " +
-    "close and on the cautious side.");
-
   // =====================================================================
   // The application
   // =====================================================================
   s = newSlide("QGX Content", "A lean woman, flagged high risk", "The application");
   figure(s, "app_summary.png", "Report summary: QGenomix high risk at the 84th percentile, IDRS moderate, BMI rule not flagged");
   s.addNotes("A synthetic demo person: 34 years old, BMI 21.6. QGenomix rates her high risk at the 84th percentile. The " +
-    "IDRS says moderate and the BMI rule says nothing. The report says so in plain words.");
-
-  s = newSlide("QGX Content", "Her genes show why", "The application");
-  figure(s, "app_mechanisms.png", "Mechanism profile: insulin production 96th and fat distribution 88th percentile, obesity 24th");
-  s.addNotes("Her insulin-production and fat-distribution scores are high and her obesity score is low. This is the " +
-    "genetic pattern behind lean diabetes.");
+    "IDRS says moderate and the BMI rule says nothing. The report says so in plain words, and shows why: her " +
+    "insulin-production and fat-distribution scores sit at the 96th and 88th percentiles while her obesity score sits at " +
+    "the 24th, the genetic pattern behind lean diabetes.");
 
   s = newSlide("QGX Content", "What she can change", "The application");
   figure(s, "app_whatif.png", "What-if table: exercise 15%, smaller waist 11%, both 6%, from 23%");
-  s.addNotes("With genes, age and family history fixed, exercise and a smaller waist take her risk from 23 percent to 6 " +
-    "percent. The same report downloads as a PDF. Live demo here if time allows.");
+  s.addNotes(`With genes, age and family history fixed, exercise and a smaller waist take her risk from 23 percent to 6 ` +
+    `percent. These estimates were checked against the simulator's true effects: a waist 5 cm smaller lowers risk by ` +
+    `${Math.round(100 * drop("waist_minus_5cm", "model"))} percent in the app and ${Math.round(100 * drop("waist_minus_5cm", "true"))} ` +
+    `in truth, exercise by ${Math.round(100 * drop("vigorous_exercise", "model"))} against ` +
+    `${Math.round(100 * drop("vigorous_exercise", "true"))}. The same report downloads as a PDF.`);
 
+  if (!PANEL) {
   s = newSlide("QGX Content", "Built to be checked", "The application");
   [[ICON.vial, String(nTests), "automated tests on every push"], [ICON.flask, "17", "experiments"],
     [ICON.sitemap, "17", "predictors compared"], [ICON.docker, "1", "command to run it anywhere"]].forEach(([icon, v, l], i) => {
@@ -525,6 +460,7 @@ async function main() {
   });
   s.addNotes("Everything can be checked. Tests run on every push, re-runs match bit for bit, and docker compose up runs the " +
     "whole application.");
+  }
 
   if (PANEL) {
     s = newSlide("QGX Content", "Live demonstration", "The application");

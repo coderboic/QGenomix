@@ -821,7 +821,7 @@ function sinceMentor() {
       ["Figures", "Several panels per figure, small text", "One point per figure, drawn at print size with text as large as the body", "Mentor's feedback"],
       ["Contents and links", "Typed contents; figures and tables not always discussed", "Live Word fields for contents, lists and cross-references; every figure, table and reference discussed in the text", "Mentor's feedback"],
       ["References", "Mixed style with DOI links", "APA throughout, no DOI links; each statistic names its source and date", "Mentor's feedback"],
-      ["Slides", "16 dense slides", "41 light slides, large text, a named source under every outside statistic", "Mentor's feedback"],
+      ["Slides", "16 dense slides", "30 light slides, large text, a named source under every outside statistic", "Mentor's feedback"],
     ], [1500, 2350, 3536, 2000], { shadeFirst: true, whole: true }),
   ];
 }
