@@ -1,8 +1,8 @@
 {
   "name": "qgenomix-presentation",
   "private": true,
-  "description": "Builds the QGenomix presentation (.pptx) from results/*.json and figures/",
-  "scripts": { "build": "node build_deck.js ../../QGenomix_Presentation.pptx" },
+  "description": "Builds the QGenomix mentor and final panel evaluation presentations (.pptx) from results/*.json and figures/",
+  "scripts": { "build": "node build_deck.js && node build_deck.js --panel" },
   "dependencies": {
     "pptxgenjs": "3.12.0",
     "react": "18.3.1",

@@ -14,7 +14,10 @@ const sharp = require("sharp");
 const Fa = require("react-icons/fa");
 
 const ROOT = path.resolve(__dirname, "../..");
-const OUT = path.resolve(process.argv[2] || path.join(ROOT, "QGenomix_Presentation.pptx"));
+// The final evaluation version adds one slide for the live demonstration; everything else is the same deck.
+const PANEL = process.argv.includes("--panel");
+const OUT = path.resolve(process.argv.slice(2).find((a) => !a.startsWith("--")) ||
+  path.join(ROOT, PANEL ? "QGenomix_Final_Panel_Evaluation_Presentation.pptx" : "QGenomix_Mentor_Evaluation_Presentation.pptx"));
 const FIG = (f) => path.join(ROOT, "figures", f);
 
 // ---------------------------------------------------------------- project details
@@ -522,6 +525,25 @@ async function main() {
   });
   s.addNotes("Everything can be checked. Tests run on every push, re-runs match bit for bit, and docker compose up runs the " +
     "whole application.");
+
+  if (PANEL) {
+    s = newSlide("QGX Content", "Live demonstration", "The application");
+    [[ICON.users, "A lean woman's risk report, step by step", "make app"],
+      [ICON.chart, "The same report from the API, as JSON and PDF", "make api"],
+      [ICON.atom, "Quantum experiments E14 and E15, rerun live", "make quantum"],
+      [ICON.microchip, "QAOA with error mitigation on IBM's noise model", "make rehearse-ibm"],
+      [ICON.vial, `All ${nTests} automated tests`, "make test"]].forEach(([icon, label, cmd], i) => {
+      const y = 1.45 + i * 1.04;
+      badge(s, icon, MX, y, 0.86, C.accent1, `Demo ${i + 1}`);
+      text(s, label, { x: MX + 1.15, y, w: 7.9, h: 0.86, fontSize: 28, valign: "middle" });
+      text(s, cmd, { x: 9.4, y, w: W - MX - 9.4, h: 0.86, fontSize: 22, color: HEX.muted, align: "right",
+        valign: "middle" });
+    });
+    s.addNotes("Run the demonstration in this order. Open the dashboard on the lean demo woman and walk through her " +
+      "report, mechanism profile and what-ifs, then download the PDF. Show the same report from the API. Rerun the two " +
+      "quantum experiments, about five minutes, and the IBM noise-model rehearsal. Finish with the tests. No internet is " +
+      "needed.");
+  }
 
   // =====================================================================
   // Outlook

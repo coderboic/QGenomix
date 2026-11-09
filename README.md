@@ -43,7 +43,8 @@ Thapar Institute of Engineering and Technology, Patiala.
 | [`QGenomix_Final_Mentor_Evaluation_Report.docx`](QGenomix_Final_Mentor_Evaluation_Report.docx) | Final report for the mentor evaluation: requirements, method, design, all experiments and results |
 | [`QGenomix_Final_Panel_Evaluation_Report.docx`](QGenomix_Final_Panel_Evaluation_Report.docx) | Final report for the panel evaluation: the same format, plus the changes since the mentor evaluation and the final demonstration |
 | [`QGenomix_Project_Summary.pdf`](QGenomix_Project_Summary.pdf) | Three-page summary of the whole project |
-| [`QGenomix_Presentation.pptx`](QGenomix_Presentation.pptx) | 41-slide presentation with speaker notes |
+| [`QGenomix_Mentor_Evaluation_Presentation.pptx`](QGenomix_Mentor_Evaluation_Presentation.pptx) | 41-slide presentation with speaker notes |
+| [`QGenomix_Final_Panel_Evaluation_Presentation.pptx`](QGenomix_Final_Panel_Evaluation_Presentation.pptx) | The same deck plus a slide for the live demonstration (42 slides) |
 | [`docs/model_card.md`](docs/model_card.md) | Intended use, data, performance, fairness and limits of the deployed model |
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | How to run the demo and what remains |
 | [`docs/resume_highlights.md`](docs/resume_highlights.md) | Project summary lines for CVs |

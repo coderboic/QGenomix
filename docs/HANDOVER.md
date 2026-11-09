@@ -22,7 +22,8 @@ Two features are deliberately kept for the final panel (around 9 November) becau
 - Final reports regenerated from the results, in the same format: `QGenomix_Final_Mentor_Evaluation_Report.docx`
   and `QGenomix_Final_Panel_Evaluation_Report.docx` (rebuild both: `cd docs/report && npm install && npm run build`).
   Word asks to update fields when a report opens: answer Yes, so the contents and page numbers match Word's layout.
-- Presentation: `QGenomix_Presentation.pptx`, 41 light slides with speaker notes and native charts
+- Presentations: `QGenomix_Mentor_Evaluation_Presentation.pptx` (41 light slides with speaker notes and native
+  charts) and `QGenomix_Final_Panel_Evaluation_Presentation.pptx` (the same plus a live-demonstration slide)
   (rebuild: `cd docs/presentation && npm install && npm run build`).
 
 ## Kept for the final panel (each about one day)
